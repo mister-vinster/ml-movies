@@ -92,7 +92,7 @@ Devvit.addCustomPostType({
         ? `${[...Array(Math.floor(rating / 2))].map(() => "★").join("")}${[
             ...Array(Math.floor(rating % 2)),
           ]
-            .map(() => "⯨")
+            .map(() => "½")
             .join("")}`
         : "zero";
     }
@@ -132,8 +132,8 @@ Devvit.addCustomPostType({
         <hstack alignment="middle center" gap="small" width="100%">
           {movieIndex ? (
             <button
-              icon="back"
               disabled={movieLoading || storeLoading}
+              icon="back"
               onPress={() => setMovieIndex(movieIndex - 1)}
             />
           ) : (
@@ -141,25 +141,26 @@ Devvit.addCustomPostType({
           )}
           <spacer grow />
           <button
-            icon="forward"
             disabled={movieLoading || storeLoading}
+            icon="forward"
             onPress={() => setMovieIndex(movieIndex + 1)}
           />
         </hstack>
 
         <spacer grow />
 
-        <hstack alignment="middle center" gap="small">
+        <hstack alignment="bottom center" gap="small">
           <image
             height="192px"
-            imageHeight={192}
-            imageWidth={128}
+            imageHeight={144}
+            imageWidth={96}
             resizeMode="cover"
             url={`ltrbxd/${movie.letterboxd_slug}.jpg`}
             width="128px"
           />
 
           <vstack grow>
+            <spacer size="small" />
             <text size="xsmall">Movie</text>
             <text
               maxWidth="100%"
@@ -172,16 +173,20 @@ Devvit.addCustomPostType({
             <text maxWidth="100%" overflow="ellipsis" size="small">
               {movie?.originalName || ""}
             </text>
-            <spacer size="medium" />
-            <text size="xsmall">Driected By</text>
+            <spacer size="small" />
+            <text size="xsmall">
+              Director
+              {1 < Object.values(movie?.director || {}).length ? "s" : ""}
+            </text>
             <text size="small" weight="bold" wrap>
               {Object.values(movie?.director || {}).join(" | ")}
             </text>
-            <spacer size="medium" />
+            <spacer size="small" />
             <text size="xsmall">Release Date</text>
             <text size="small" weight="bold">
               {movie?.releaseDate || ""}
             </text>
+            <spacer size="small" />
           </vstack>
         </hstack>
 
@@ -193,6 +198,7 @@ Devvit.addCustomPostType({
           <hstack alignment="bottom center" gap="small" width="100%">
             {0 < store.rating ? (
               <button
+                disabled={movieLoading || storeLoading}
                 icon="subtract"
                 onPress={() =>
                   setStore(
@@ -206,7 +212,7 @@ Devvit.addCustomPostType({
             ) : (
               ""
             )}
-            <vstack alignment="middle center" maxWidth="60%">
+            <vstack alignment="top center" maxWidth="60%">
               <text
                 maxWidth="100%"
                 overflow="ellipsis"
@@ -234,6 +240,7 @@ Devvit.addCustomPostType({
             </vstack>
             {store.rating < 10 ? (
               <button
+                disabled={movieLoading || storeLoading}
                 icon="add"
                 onPress={() =>
                   setStore(
