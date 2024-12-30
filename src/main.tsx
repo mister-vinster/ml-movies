@@ -59,7 +59,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return { redisStore, redisStoreKey, store };
   }
 
-  function agg(redisStore: string) {
+  function agg(redisStore: string = "") {
     const ratings: { [k: string]: number } = {
       zero: movie.zero || 0,
       half: movie.half || 0,
@@ -121,9 +121,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     setCache({
       ...cache,
       [r.redisStoreKey]: r.store,
-      ...(r.redisStore
-        ? { [`${r.redisStoreKey}|agg`]: agg(r.redisStore) }
-        : {}),
+      [`${r.redisStoreKey}|agg`]: agg(r.redisStore),
     });
     return r.store;
   });
@@ -136,11 +134,18 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   });
 
   const { loading: storeLoading } = useAsync(
-    async () => (await getStore()).store,
+    async () => (await getStore()) as any,
     {
       depends: [movie],
       finally: (r, e) => {
-        if (!e) setStore(r);
+        if (!e) {
+          setCache({
+            ...cache,
+            [r.redisStoreKey]: r.store,
+            [`${r.redisStoreKey}|agg`]: agg(r.redisStore),
+          });
+          setStore(r.store);
+        }
       },
     }
   );
@@ -148,7 +153,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const { loading: cacheLoading } = useAsync(
     async () => {
       const r = await getStore();
-      if (!isEqual(store, r.store))
+      if (!isEqual(r.store, store))
         r.redisStore = await setRedisStore(r.redisStoreKey, store); // persist
       return {
         ...cache,
@@ -376,14 +381,11 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
   function getRatingsSummary() {
     const values: number[] = Object.values(props.getAgg());
     const count = values.reduce((m, i) => m + i, 0);
-    const avg = round(
-      values.reduce((m, item, index) => m + item * index, 0) / count / 2,
-      1
-    );
+    const avg = values.reduce((m, i, index) => m + i * index, 0) / count / 2.2;
     return (
       <hstack alignment="bottom center" gap="small">
         <text size="xlarge" weight="bold">
-          {avg}
+          {round(avg, 1)}
         </text>
         <text size="small">from {enIn(count)} ratings</text>
       </hstack>
@@ -393,21 +395,28 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
   function getRatingsChart() {
     const values: number[] = Object.values(props.getAgg());
     const count = values.reduce((m, i) => m + i, 0);
-    const chunks = chunk(values, 2).map((i) => i.reduce((m, i) => m + i, 0));
+    const chunks = chunk(values.slice(1), 2).map((i) =>
+      i.reduce((m, i) => m + i, 0)
+    );
+    chunks[0] += values[0]; // 11
     return (
       <vstack alignment="middle center">
         {chunks.map((i, index) => (
           <vstack width="192px">
             {index ? <spacer size="small" /> : ""}
             <hstack alignment="bottom center" gap="small">
-              <text
-                maxWidth={`${96 + index * 16}%`}
-                overflow="ellipsis"
-                size="xsmall"
-                weight="bold"
-              >
-                {enIn(i)} ~ {round((i / count) * 100, 1)}%
-              </text>
+              {0 < i ? (
+                <text
+                  maxWidth={`${96 + index * 16}%`}
+                  overflow="ellipsis"
+                  size="xsmall"
+                  weight="bold"
+                >
+                  {enIn(i)} ~ {round((i / count) * 100, 1)}%
+                </text>
+              ) : (
+                ""
+              )}
               <spacer grow />
               <text size="xsmall">
                 {[...Array(chunks.length - index)].map(() => "🌕")}
