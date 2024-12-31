@@ -1,5 +1,5 @@
 import { Devvit, useAsync, useState } from "@devvit/public-api";
-import { chunk, isEqual, random, round } from "lodash";
+import { chunk, isEqual, round } from "lodash";
 
 import { ltrbxd } from "./fixture.js";
 
@@ -64,15 +64,14 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     if (cache[redisStoreKey])
       return { redisStoreKey, store: cache[redisStoreKey] };
     const redisStore = await getRedisStore(redisStoreKey);
-    const [
-      store = { userId: ctx.userId!, rating: random(10), ratingFrozen: 0 },
-    ] = redisStore
-      .split("%")
-      .filter((i) => i.startsWith(`${ctx.userId}|`))
-      .map((i) => {
-        const [userId, rating, ratingFrozen] = i.split("|");
-        return { userId, rating: +rating, ratingFrozen: +ratingFrozen };
-      });
+    const [store = { userId: ctx.userId!, rating: 5, ratingFrozen: 0 }] =
+      redisStore
+        .split("%")
+        .filter((i) => i.startsWith(`${ctx.userId}|`))
+        .map((i) => {
+          const [userId, rating, ratingFrozen] = i.split("|");
+          return { userId, rating: +rating, ratingFrozen: +ratingFrozen };
+        });
     return { redisStore, redisStoreKey, store };
   }
 
@@ -265,7 +264,7 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
       <spacer grow />
 
-      <hstack alignment="bottom center" gap="small">
+      <hstack alignment="bottom center" gap="small" width="100%">
         <image
           height="144px"
           imageHeight={144}
@@ -275,22 +274,22 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           width="96px"
         />
 
-        <vstack grow>
+        <vstack maxWidth="60%">
           <spacer size="small" />
           <text size="xsmall">Movie</text>
-          <text maxWidth="100%" overflow="ellipsis" size="xlarge" weight="bold">
+          <text overflow="ellipsis" size="xlarge" weight="bold">
             {props.movie.name || ""}
           </text>
-          <text maxWidth="100%" overflow="ellipsis" size="small">
+          <text overflow="ellipsis" size="small">
             {props.movie.originalName || ""}
           </text>
           <spacer size="small" />
           <text size="xsmall">
             Director
-            {1 < Object.values(props.movie.director || {}).length ? "s" : ""}
+            {1 < Object.values(props.movie.director).length ? "s" : ""}
           </text>
           <text size="small" weight="bold" wrap>
-            {Object.values(props.movie.director || {}).join(" | ")}
+            {Object.values(props.movie.director).join(" | ")}
           </text>
           <spacer size="small" />
           <text size="xsmall">Release Date</text>
