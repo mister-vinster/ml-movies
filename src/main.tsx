@@ -1,47 +1,35 @@
 import { Devvit, useAsync, useState } from "@devvit/public-api";
-import { chunk, isEqual, round } from "lodash";
+import { chunk, round } from "lodash";
 
 import { ltrbxd } from "./fixture.js";
 
-type TStore = {
-  userId: string;
-  rating: number;
-  ratingFrozen: boolean | number;
-};
+enum Routes {
+  Rating,
+  Statistics,
+}
 
-type TRatings = {
-  zero: number;
-  half: number;
-  one: number;
-  one_half: number;
-  two: number;
-  two_half: number;
-  three: number;
-  three_half: number;
-  four: number;
-  four_half: number;
-  five: number;
-};
+enum Actions {
+  Dummy,
+  Submit,
+  Reset,
+}
 
 interface IProps {
-  enIn: (v: number, locale?: string, opts?: any) => string;
-  showToast: (text: string) => void;
   page: number;
   setPage: (page: number) => void;
   movieIndex: number;
   setMovieIndex: (movie: number) => void;
   movie: any;
-  store: TStore;
-  setStore: (store: TStore) => void;
-  ratings: TRatings;
+  flag: boolean;
+  rating: number;
+  setRating: (rating: number) => void;
+  ratings: any;
+  setAction: (action: number) => void;
+  enIn: (v: number, locale?: string, opts?: any) => string;
+  showToast: (text: string) => void;
+  movieIndexLoading: boolean;
   movieLoading: boolean;
-  storeLoading: boolean;
-  cacheLoading: boolean;
-}
-
-enum Route {
-  Rating,
-  Statistics,
+  actionLoading: boolean;
 }
 
 Devvit.configure({ redditAPI: true, redis: true });
@@ -51,33 +39,21 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return ltrbxd[index % ltrbxd.length] as any;
   }
 
-  function getRedisStoreKey() {
+  function getKeyPrefix() {
     return `${ctx.postId}|${movie.letterboxd_slug}`;
   }
 
-  async function getRedisStore(redisStoreKey: string) {
-    return (await ctx.redis.get(redisStoreKey)) || "";
+  async function getRating() {
+    const rating = await ctx.redis.hGet(
+      `${getKeyPrefix()}|rating`,
+      ctx.userId!
+    );
+    if (rating === undefined) return { flag: false, rating: 5 };
+    return { flag: true, rating: +rating };
   }
 
-  async function getStore() {
-    const redisStoreKey = getRedisStoreKey();
-    if (cache[redisStoreKey])
-      return { redisStoreKey, store: cache[redisStoreKey] };
-    const redisStore = await getRedisStore(redisStoreKey);
-    const [store = { userId: ctx.userId!, rating: 5, ratingFrozen: 0 }] =
-      redisStore
-        .split("%")
-        .filter((i) => i.startsWith(`${ctx.userId}|`))
-        .map((i) => {
-          const [userId, rating, ratingFrozen] = i.split("|");
-          return { userId, rating: +rating, ratingFrozen: +ratingFrozen };
-        });
-    return { redisStore, redisStoreKey, store };
-  }
-
-  function agg(redisStore: string = "") {
+  async function getRatings() {
     const ratings: { [k: string]: number } = {
-      zero: movie.zero || 0,
       half: movie.half || 0,
       one: movie.one || 0,
       one_half: movie.one_half || 0,
@@ -90,35 +66,20 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
       five: movie.five || 0,
     };
     const keys = Object.keys(ratings);
-    for (const rating of redisStore
-      .split("%")
-      .map((i) => {
-        const [, rating, ratingFrozen] = i.split("|");
-        if (+ratingFrozen) return +rating;
-        return 1000;
-      })
-      .filter((i) => i <= 10))
-      ratings[keys[rating]] += 1;
+    for (const [i, v] of (
+      await ctx.redis.hMGet(`${getKeyPrefix()}|ratings`, keys)
+    ).entries())
+      if (v) ratings[keys[i]] += +v;
     return ratings;
   }
 
-  async function setRedisStore(redisStoreKey: string, store: TStore) {
-    let redisStore = (await ctx.redis.get(redisStoreKey)) || "";
-    redisStore = redisStore.includes(`${store.userId}|`)
-      ? redisStore
-          .split("%")
-          .map((i) =>
-            i.startsWith(`${store.userId}|`)
-              ? `${store.userId}|${store.rating}|${+store.ratingFrozen}`
-              : i
-          )
-          .join("%")
-      : `${redisStore ? "%" : ""}${store.userId}|${
-          store.rating
-        }|${+store.ratingFrozen}`;
-    await ctx.redis.set(redisStoreKey, redisStore);
-    return redisStore;
-  }
+  const [page, setPage] = useState(Routes.Rating);
+  const [movieIndex, setMovieIndex] = useState(0);
+  const [movie, setMovie] = useState(getMovie());
+  const [flag, setFlag] = useState(async () => (await getRating()).flag);
+  const [rating, setRating] = useState(async () => (await getRating()).rating);
+  const [ratings, setRatings] = useState(async () => await getRatings());
+  const [action, setAction] = useState(Actions.Dummy);
 
   function enIn(value: number, locale: string = "en-in", opts: any = {}) {
     return value.toLocaleString(locale, opts);
@@ -128,86 +89,107 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     ctx.ui.showToast(text);
   }
 
-  const [cache, setCache] = useState<any>({});
-  const [page, setPage] = useState(Route.Rating);
-  const [movieIndex, setMovieIndex] = useState(0);
-  const [movie, setMovie] = useState(getMovie());
-  const [store, setStore] = useState<TStore>(async () => {
-    const r = await getStore();
-    setCache({
-      ...cache,
-      [r.redisStoreKey]: r.store,
-      [`${r.redisStoreKey}|agg`]: agg(r.redisStore),
-    });
-    return r.store;
-  });
-  const [ratings, setRatings] = useState<TRatings>(
-    cache[`${getRedisStoreKey()}|agg`]
+  const { loading: movieIndexLoading } = useAsync(
+    async () => getMovie(movieIndex),
+    {
+      depends: [movieIndex],
+      finally: (r, e) => {
+        if (!e && r) setMovie(r);
+      },
+    }
   );
 
-  const { loading: movieLoading } = useAsync(async () => getMovie(movieIndex), {
-    depends: [movieIndex],
-    finally: (r, e) => {
-      if (!e) setMovie(r);
+  const { loading: movieLoading } = useAsync(
+    async () => {
+      const { flag, rating } = await getRating();
+      return { flag, rating, ratings: await getRatings() };
     },
-  });
-
-  const { loading: storeLoading } = useAsync(
-    async () => (await getStore()) as any,
     {
-      depends: [movie.letterboxd_slug],
+      depends: [movie],
       finally: (r, e) => {
-        if (!e) {
-          const i = { ...cache, [r.redisStoreKey]: store };
-          if (r.redisStore) i[`${r.redisStoreKey}|agg`] = agg(r.redisStore);
-          setCache(i);
-          setStore(r.store);
-          setRatings(i[`${r.redisStoreKey}|agg`]);
+        if (!e && r) {
+          setFlag(r.flag);
+          setRating(r.rating);
+          setRatings(r.ratings);
         }
       },
     }
   );
 
-  const { loading: cacheLoading } = useAsync(
+  const { loading: actionLoading } = useAsync(
     async () => {
-      const r = (await getStore()) as any;
-      if (!isEqual(r.store, store))
-        r.redisStore = await setRedisStore(r.redisStoreKey, store); // persist
-      return r;
+      switch (action) {
+        case Actions.Submit: {
+          const txn = await ctx.redis.watch(
+            `${getKeyPrefix()}|rating`,
+            `${getKeyPrefix()}|ratings`
+          );
+          await txn.multi();
+          await txn.hSet(`${getKeyPrefix()}|rating`, {
+            [ctx.userId!]: `${rating}`,
+          });
+          await txn.hIncrBy(
+            `${getKeyPrefix()}|ratings`,
+            Object.keys(ratings!)[rating - 1],
+            1
+          );
+          await txn.exec();
+          return { flag: true, rating, ratings: await getRatings() };
+        }
+
+        case Actions.Reset: {
+          const txn = await ctx.redis.watch(
+            `${getKeyPrefix()}|rating`,
+            `${getKeyPrefix()}|ratings`
+          );
+          await txn.multi();
+          await txn.hDel(`${getKeyPrefix()}|rating`, [ctx.userId!]);
+          await txn.hIncrBy(
+            `${getKeyPrefix()}|ratings`,
+            Object.keys(ratings!)[rating - 1],
+            -1
+          );
+          await txn.exec();
+          return { flag: false, rating, ratings: await getRatings() };
+        }
+
+        default:
+          return false;
+      }
     },
     {
-      depends: [store],
+      depends: [action],
       finally: (r, e) => {
-        if (!e) {
-          const i = { ...cache, [r.redisStoreKey]: store };
-          if (r.redisStore) {
-            i[`${r.redisStoreKey}|agg`] = agg(r.redisStore);
-            setRatings(i[`${r.redisStoreKey}|agg`]);
-          }
-          setCache(i);
+        if (!e && r) {
+          setAction(Actions.Dummy);
+          setRatings(r.ratings);
+          setRating(r.rating);
+          setFlag(r.flag);
         }
       },
     }
   );
 
   const props: IProps = {
-    enIn,
-    showToast,
     page,
     setPage,
     movieIndex,
     setMovieIndex,
     movie,
-    store,
-    setStore,
+    flag,
+    rating,
+    setRating,
     ratings,
+    setAction,
+    enIn,
+    showToast,
+    movieIndexLoading,
     movieLoading,
-    storeLoading,
-    cacheLoading,
+    actionLoading,
   };
 
   switch (page) {
-    case Route.Statistics:
+    case Routes.Statistics:
       return <StatisticsPage {...props} />;
     default:
       return <RatingPage {...props} />;
@@ -216,20 +198,18 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
 
 const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
   function getRatingText(rating: number) {
-    return rating
-      ? `${[...Array(Math.floor(rating / 2))].map(() => "🌕").join("")}${[
-          ...Array(Math.floor(rating % 2)),
-        ]
-          .map(() => "🌗")
-          .join("")}`
-      : "🌘";
+    return `${[...Array(Math.floor(rating / 2))].map(() => "🌕").join("")}${[
+      ...Array(Math.floor(rating % 2)),
+    ]
+      .map(() => "🌗")
+      .join("")}`;
   }
 
   function getRatingsSummary() {
-    if (!props.ratings) return <spacer grow />;
     const values: number[] = Object.values(props.ratings);
     const count = values.reduce((m, i) => m + i, 0);
-    const avg = values.reduce((m, i, index) => m + i * index, 0) / count / 2.2;
+    const avg =
+      values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2;
     return (
       <hstack alignment="bottom center" gap="small" grow>
         <text size="xlarge" weight="bold">
@@ -247,7 +227,7 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
       <hstack alignment="middle center" gap="small" width="100%">
         {0 < props.movieIndex ? (
           <button
-            disabled={props.movieLoading}
+            disabled={props.movieIndexLoading}
             icon="back"
             onPress={() => props.setMovieIndex(props.movieIndex - 1)}
           />
@@ -256,7 +236,7 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         )}
         <spacer grow />
         <button
-          disabled={props.movieLoading}
+          disabled={props.movieIndexLoading}
           icon="forward"
           onPress={() => props.setMovieIndex(props.movieIndex + 1)}
         />
@@ -278,7 +258,7 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <spacer size="small" />
           <text size="xsmall">Movie</text>
           <text overflow="ellipsis" size="xlarge" weight="bold">
-            {props.movie.name || ""}
+            {props.movie.name}
           </text>
           <text overflow="ellipsis" size="small">
             {props.movie.originalName || ""}
@@ -294,28 +274,23 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <spacer size="small" />
           <text size="xsmall">Release Date</text>
           <text size="small" weight="bold">
-            {props.movie.releaseDate || ""}
+            {props.movie.releaseDate}
           </text>
           <spacer size="small" />
         </vstack>
       </hstack>
 
-      {props.store.ratingFrozen ? (
+      {props.flag ? (
         <text size="small" weight="bold">
-          {getRatingText(props.store.rating)} rating
+          {getRatingText(props.rating)} rating
         </text>
       ) : (
         <hstack alignment="bottom center" gap="small" width="100%">
-          {0 < props.store.rating ? (
+          {1 < props.rating ? (
             <button
-              disabled={props.movieLoading || props.storeLoading}
+              disabled={props.actionLoading}
               icon="subtract"
-              onPress={() =>
-                props.setStore({
-                  ...props.store,
-                  rating: props.store.rating - 1,
-                })
-              }
+              onPress={() => props.setRating(props.rating - 1)}
             />
           ) : (
             ""
@@ -337,26 +312,21 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
             >
               <hstack
                 backgroundColor="primary-background"
-                width={`${props.store.rating * 10}%`}
+                width={`${(props.rating - 1) * 11.11}%`}
               >
                 <spacer size="xsmall" shape="square" />
               </hstack>
             </vstack>
             <spacer size="xsmall" />
             <text size="xsmall" weight="bold">
-              {getRatingText(props.store.rating)}
+              {getRatingText(props.rating)}
             </text>
           </vstack>
-          {props.store.rating < 10 ? (
+          {props.rating < 10 ? (
             <button
-              disabled={props.movieLoading || props.storeLoading}
+              disabled={props.actionLoading}
               icon="add"
-              onPress={() =>
-                props.setStore({
-                  ...props.store,
-                  rating: props.store.rating + 1,
-                })
-              }
+              onPress={() => props.setRating(props.rating + 1)}
             />
           ) : (
             ""
@@ -368,31 +338,29 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
       <hstack alignment="middle center" gap="small" width="100%">
         <button
-          disabled={
-            props.movieLoading || props.storeLoading || props.cacheLoading
-          }
+          disabled={props.movieLoading}
           icon="statistics"
-          onPress={() => props.setPage(Route.Statistics)}
+          onPress={() => props.setPage(Routes.Statistics)}
         />
         {getRatingsSummary()}
-        {props.store.ratingFrozen ? (
+        {props.flag ? (
           <button
             appearance="destructive"
-            disabled={props.movieLoading || props.storeLoading}
+            disabled={props.movieLoading || props.actionLoading}
             icon="undo"
-            onPress={() => props.setStore({ ...props.store, ratingFrozen: 0 })}
+            onPress={() => props.setAction(Actions.Reset)}
           />
         ) : (
           <button
             appearance="primary"
-            disabled={props.movieLoading || props.storeLoading}
+            disabled={props.movieLoading || props.actionLoading}
             icon="checkmark"
             onPress={() => {
-              props.setStore({ ...props.store, ratingFrozen: 1 });
+              props.setAction(Actions.Submit);
               props.showToast(
                 `${
                   props.movie.originalName || props.movie.name
-                } ~ ${getRatingText(props.store.rating)} rating`
+                } ~ ${getRatingText(props.rating)} rating`
               );
             }}
           />
@@ -404,10 +372,10 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
 const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
   function getRatingsSummary() {
-    if (!props.ratings) return "";
     const values: number[] = Object.values(props.ratings);
     const count = values.reduce((m, i) => m + i, 0);
-    const avg = values.reduce((m, i, index) => m + i * index, 0) / count / 2.2;
+    const avg =
+      values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2;
     return (
       <hstack alignment="bottom center" gap="small">
         <text size="xlarge" weight="bold">
@@ -419,13 +387,9 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
   }
 
   function getRatingsChart() {
-    if (!props.ratings) return "";
     const values: number[] = Object.values(props.ratings);
     const count = values.reduce((m, i) => m + i, 0);
-    const chunks = chunk(values.slice(1), 2).map((i) =>
-      i.reduce((m, i) => m + i, 0)
-    );
-    chunks[0] += values[0]; // out of 11 => out of 5
+    const chunks = chunk(values, 2).map((i) => i.reduce((m, i) => m + i, 0));
     return (
       <vstack alignment="middle center">
         {chunks.reverse().map((i, index) => (
@@ -468,7 +432,7 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
     <vstack alignment="middle center" gap="medium" grow padding="medium">
       <spacer grow />
 
-      <hstack alignment="bottom center" gap="small">
+      <hstack alignment="bottom center" gap="small" width="100%">
         <image
           height="72px"
           imageHeight={72}
@@ -478,13 +442,13 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
           width="48px"
         />
 
-        <vstack grow>
+        <vstack maxWidth="60%">
           <spacer size="small" />
           <text size="xsmall">Movie</text>
-          <text maxWidth="100%" overflow="ellipsis" size="xlarge" weight="bold">
-            {props.movie.name || ""}
+          <text overflow="ellipsis" size="xlarge" weight="bold">
+            {props.movie.name}
           </text>
-          <text maxWidth="100%" overflow="ellipsis" size="small">
+          <text overflow="ellipsis" size="small">
             {props.movie.originalName || ""}
           </text>
           <spacer size="small" />
@@ -497,7 +461,7 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
       <spacer grow />
 
       <hstack alignment="middle center" gap="small" width="100%">
-        <button icon="close" onPress={() => props.setPage(Route.Rating)} />
+        <button icon="close" onPress={() => props.setPage(Routes.Rating)} />
         <spacer grow />
       </hstack>
     </vstack>
@@ -512,7 +476,6 @@ Devvit.addMenuItem({
   location: "subreddit",
   onPress: async (_event, ctx) => {
     const { reddit, ui } = ctx;
-    ui.showToast("submitting & navigating");
     const subreddit = await reddit.getCurrentSubreddit();
     const post = await reddit.submitPost({
       title: "ml-movies post",
