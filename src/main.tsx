@@ -40,7 +40,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   }
 
   function getKeyPrefix() {
-    return `${ctx.postId}|${movie.letterboxd_slug}`;
+    return `${ctx.postId}|${movie.ltrbxd_slug}`;
   }
 
   async function getRating() {
@@ -250,7 +250,7 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           imageHeight={144}
           imageWidth={96}
           resizeMode="cover"
-          url={`ltrbxd/${props.movie.letterboxd_slug}.jpg`}
+          url={`ltrbxd/${props.movie.ltrbxd_slug}.jpg`}
           width="96px"
         />
 
@@ -260,9 +260,13 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <text overflow="ellipsis" size="xlarge" weight="bold">
             {props.movie.name}
           </text>
-          <text overflow="ellipsis" size="small">
-            {props.movie.originalName || ""}
-          </text>
+          {props.movie.originalName ? (
+            <text overflow="ellipsis" size="xsmall">
+              {props.movie.originalName}
+            </text>
+          ) : (
+            ""
+          )}
           <spacer size="small" />
           <text size="xsmall">
             Director
@@ -270,11 +274,6 @@ const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           </text>
           <text size="small" weight="bold" wrap>
             {Object.values(props.movie.director).join(" | ")}
-          </text>
-          <spacer size="small" />
-          <text size="xsmall">Release Date</text>
-          <text size="small" weight="bold">
-            {props.movie.releaseDate}
           </text>
           <spacer size="small" />
         </vstack>
@@ -438,7 +437,7 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
           imageHeight={72}
           imageWidth={48}
           resizeMode="cover"
-          url={`ltrbxd/${props.movie.letterboxd_slug}.jpg`}
+          url={`ltrbxd/${props.movie.ltrbxd_slug}.jpg`}
           width="48px"
         />
 
@@ -448,9 +447,13 @@ const StatisticsPage: Devvit.BlockComponent<IProps> = (props) => {
           <text overflow="ellipsis" size="xlarge" weight="bold">
             {props.movie.name}
           </text>
-          <text overflow="ellipsis" size="small">
-            {props.movie.originalName || ""}
-          </text>
+          {props.movie.originalName ? (
+            <text overflow="ellipsis" size="xsmall">
+              {props.movie.originalName}
+            </text>
+          ) : (
+            ""
+          )}
           <spacer size="small" />
         </vstack>
       </hstack>
