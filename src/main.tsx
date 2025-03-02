@@ -1,4 +1,5 @@
 import { Devvit, useAsync, useState } from "@devvit/public-api";
+import { random } from "lodash";
 
 import { Actions, Routes } from "./config.ts";
 import { ltrbxd } from "./fixture.ts";
@@ -42,7 +43,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
       `${getKeyPrefix()}|rating`,
       ctx.userId!
     );
-    if (rating === undefined) return { flag: false, rating: 5 };
+    if (rating === undefined) return { flag: false, rating: random(1, 10) };
     return { flag: true, rating: +rating };
   }
 

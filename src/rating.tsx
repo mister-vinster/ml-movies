@@ -87,26 +87,27 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         </vstack>
       </hstack>
 
-      <spacer size="small" />
-
       {props.flag ? (
-        <text size="small" weight="bold">
-          {getRatingText(props.rating)} rating
-        </text>
+        <hstack cornerRadius="full" border="thin" padding="small">
+          <text size="small" weight="bold">
+            {getRatingText(props.rating)} rating
+          </text>
+        </hstack>
       ) : (
-        <hstack alignment="bottom center" gap="medium" width="100%">
+        <hstack
+          alignment="bottom center"
+          border="thin"
+          cornerRadius="full"
+          gap="small"
+          padding="small"
+        >
           <button
             disabled={props.actionLoading || props.rating <= 1}
             icon="subtract"
             onPress={() => props.setRating(props.rating - 1)}
           />
-          <vstack alignment="top center" maxWidth="60%">
-            <text
-              maxWidth="100%"
-              overflow="ellipsis"
-              size="small"
-              weight="bold"
-            >
+          <vstack alignment="top center">
+            <text size="small" weight="bold">
               how would you rate this movie?
             </text>
             <spacer size="small" />
