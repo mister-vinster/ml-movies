@@ -1,5 +1,6 @@
-import { Devvit, useAsync, useState } from "@devvit/public-api";
+import { Devvit, useAsync, useForm, useState } from "@devvit/public-api";
 import { random } from "lodash";
+import { isJSON } from "validator";
 
 import { Actions, Routes } from "./config.ts";
 import { ltrbxd } from "./fixture.ts";
@@ -14,22 +15,29 @@ Devvit.addMenuItem({
   label: "add ml-movies post",
   location: "subreddit",
   onPress: async (_event, ctx) => {
-    const { reddit, ui } = ctx;
-    const subreddit = await reddit.getCurrentSubreddit();
-    const post = await reddit.submitPost({
+    const post = await ctx.reddit.submitPost({
       title: "movie ratings",
-      subredditName: subreddit.name,
+      subredditName: ctx.subredditName!,
       preview: (
         <vstack alignment="middle center" grow>
           <text size="large">loading...</text>
         </vstack>
       ),
     });
-    ui.navigateTo(post);
+    await ctx.redis.set(
+      `${post.id}|configs`,
+      JSON.stringify({ mods: ctx.userId }) // initialize
+    );
+    ctx.ui.navigateTo(post);
   },
 });
 
 const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
+  async function getConfigs() {
+    const configs = await ctx.redis.get(`${ctx.postId}|configs`);
+    return configs && isJSON(configs) ? JSON.parse(configs) : {};
+  }
+
   function getMovie(index: number = 0) {
     return ltrbxd[index % ltrbxd.length] as any;
   }
@@ -68,6 +76,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return ratings;
   }
 
+  const [configs, setConfigs] = useState(async () => await getConfigs());
   const [page, setPage] = useState(Routes.Rating);
   const [movieIndex, setMovieIndex] = useState(0);
   const [movie, setMovie] = useState(getMovie());
@@ -75,14 +84,6 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const [rating, setRating] = useState(async () => (await getRating()).rating);
   const [ratings, setRatings] = useState(async () => await getRatings());
   const [action, setAction] = useState(Actions.Dummy);
-
-  function enIn(value: number, locale: string = "en-in", opts: any = {}) {
-    return value.toLocaleString(locale, opts);
-  }
-
-  function showToast(text: string) {
-    ctx.ui.showToast(text);
-  }
 
   const { loading: movieIndexLoading } = useAsync(() => getMovie(movieIndex), {
     depends: [movieIndex],
@@ -162,22 +163,57 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     }
   );
 
+  function showToast(text: string) {
+    ctx.ui.showToast(text);
+  }
+
+  function enIn(value: number, locale: string = "en-in", opts: any = {}) {
+    return value.toLocaleString(locale, opts);
+  }
+
+  const prompt = useForm(
+    {
+      fields: [
+        {
+          defaultValue: JSON.stringify(configs, null, 2),
+          label: "configs",
+          lineHeight: 10,
+          name: "configs",
+          required: true,
+          type: "paragraph",
+        },
+      ],
+    },
+    async (r) => {
+      if (r.configs && isJSON(r.configs)) {
+        await ctx.redis.set(`${ctx.postId}|configs`, r.configs);
+        setConfigs(JSON.parse(r.configs));
+      } else showToast("invalid configs");
+    }
+  );
+
+  function customize() {
+    ctx.ui.showForm(prompt);
+  }
+
   const props: IProps = {
     page,
     setPage,
     movieIndex,
     setMovieIndex,
+    movieIndexLoading,
     movie,
+    movieLoading,
     flag,
     rating,
     setRating,
     ratings,
     setAction,
-    enIn,
-    showToast,
-    movieIndexLoading,
-    movieLoading,
     actionLoading,
+    showToast,
+    enIn,
+    mod: configs?.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e",
+    customize,
   };
 
   switch (page) {

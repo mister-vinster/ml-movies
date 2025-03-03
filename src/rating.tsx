@@ -39,6 +39,8 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
             icon="back"
             onPress={() => props.setMovieIndex(props.movieIndex - 1)}
           />
+        ) : props.mod ? (
+          <button icon="customize" onPress={props.customize} />
         ) : (
           ""
         )}
