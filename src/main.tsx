@@ -1,9 +1,10 @@
 import { Devvit, useAsync, useForm, useState } from "@devvit/public-api";
+import { csvFormat } from "d3-dsv";
 import { random } from "lodash";
 import { isJSON } from "validator";
 
+import { validate } from "./ajv.ts";
 import { Actions, Routes } from "./config.ts";
-import { ltrbxd } from "./fixture.ts";
 import { IProps } from "./interface.ts";
 import { RatingPage } from "./rating.tsx";
 import { StatsPage } from "./stats.tsx";
@@ -26,7 +27,10 @@ Devvit.addMenuItem({
     });
     await ctx.redis.set(
       `${post.id}|configs`,
-      JSON.stringify({ mods: ctx.userId }) // initialize
+      JSON.stringify({
+        mods: [ctx.userId],
+        movies: [{ id: "id", title: "title" }],
+      })
     );
     ctx.ui.navigateTo(post);
   },
@@ -39,11 +43,13 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   }
 
   function getMovie(index: number = 0) {
-    return ltrbxd[index % ltrbxd.length] as any;
+    return configs.movies?.length
+      ? configs.movies[index % configs.movies.length]
+      : { id: "id", title: "title" };
   }
 
   function getKeyPrefix() {
-    return `${ctx.postId}|${movie.ltrbxd_slug}`;
+    return `${ctx.postId}|movie-${movie.id}`;
   }
 
   async function getRating() {
@@ -152,13 +158,18 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     },
     {
       depends: [action],
-      finally: (r, e) => {
-        if (r) {
-          setAction(Actions.Dummy);
-          setRatings(r.ratings);
-          setRating(r.rating);
-          setFlag(r.flag);
-        }
+      finally: (r: any, e) => {
+        setAction(Actions.Dummy);
+
+        if (r)
+          switch (action) {
+            case Actions.Submit:
+            case Actions.Reset: {
+              setRatings(r.ratings);
+              setRating(r.rating);
+              setFlag(r.flag);
+            }
+          }
       },
     }
   );
@@ -171,13 +182,15 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return value.toLocaleString(locale, opts);
   }
 
-  const prompt = useForm(
+  const customizeForm = useForm(
     {
+      acceptLabel: "save",
+      description: "more ~ github.com/hedcet/ml-movies",
       fields: [
         {
           defaultValue: JSON.stringify(configs, null, 2),
           label: "configs",
-          lineHeight: 10,
+          lineHeight: 15,
           name: "configs",
           required: true,
           type: "paragraph",
@@ -186,14 +199,78 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     },
     async (r) => {
       if (r.configs && isJSON(r.configs)) {
-        await ctx.redis.set(`${ctx.postId}|configs`, r.configs);
-        setConfigs(JSON.parse(r.configs));
-      } else showToast("invalid configs");
+        const configs = JSON.parse(r.configs);
+        if (validate(configs)) {
+          await ctx.redis.set(`${ctx.postId}|configs`, r.configs);
+          setConfigs(configs);
+          // populate configs.refs
+        } else {
+          const [error] = validate.errors!;
+          showToast(error.message || "invalid configs");
+        }
+      } else showToast("invalid json");
     }
   );
 
   function customize() {
-    ctx.ui.showForm(prompt);
+    ctx.ui.showForm(customizeForm);
+  }
+
+  async function download() {
+    const data = configs.movies
+      ? await Promise.all(
+          configs.movies.map(async (movie: any) => {
+            const [
+              half,
+              one,
+              one_half,
+              two,
+              two_half,
+              three,
+              three_half,
+              four,
+              four_half,
+              five,
+            ] = await ctx.redis.hMGet(
+              `${ctx.postId}|movie-${movie.id}|ratings`,
+              [
+                "half",
+                "one",
+                "one_half",
+                "two",
+                "two_half",
+                "three",
+                "three_half",
+                "four",
+                "four_half",
+                "five",
+              ]
+            );
+            return {
+              ...movie,
+              half: +(movie.half || 0) + +(half || 0),
+              one: +(movie.one || 0) + +(one || 0),
+              one_half: +(movie.one_half || 0) + +(one_half || 0),
+              two: +(movie.two || 0) + +(two || 0),
+              two_half: +(movie.two_half || 0) + +(two_half || 0),
+              three: +(movie.three || 0) + +(three || 0),
+              three_half: +(movie.three_half || 0) + +(three_half || 0),
+              four: +(movie.four || 0) + +(four || 0),
+              four_half: +(movie.four_half || 0) + +(four_half || 0),
+              five: +(movie.five || 0) + +(five || 0),
+            };
+          })
+        )
+      : [];
+    ctx.ui.navigateTo(
+      `https://ml-movies.hedcet.workers.dev?sub=${
+        ctx.subredditName
+      }&href=${encodeURIComponent(
+        `data:text/csv;base64,${Buffer.from(csvFormat(data)).toString(
+          "base64"
+        )}`
+      )}`
+    );
   }
 
   const props: IProps = {
@@ -212,8 +289,9 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     actionLoading,
     showToast,
     enIn,
-    mod: configs?.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e",
+    mod: configs.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e",
     customize,
+    download,
   };
 
   switch (page) {

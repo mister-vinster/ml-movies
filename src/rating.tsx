@@ -16,8 +16,9 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
   function getRatingsSummary() {
     const values: number[] = Object.values(props.ratings);
     const count = values.reduce((m, i) => m + i, 0);
-    const avg =
-      values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2;
+    const avg = count
+      ? values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2
+      : 0;
     return (
       <hstack alignment="bottom center" gap="small" grow>
         <text size="xlarge" weight="bold">
@@ -40,7 +41,10 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
             onPress={() => props.setMovieIndex(props.movieIndex - 1)}
           />
         ) : props.mod ? (
-          <button icon="customize" onPress={props.customize} />
+          <hstack gap="small">
+            <button icon="customize" onPress={props.customize} />
+            <button icon="download" onPress={props.download} />
+          </hstack>
         ) : (
           ""
         )}
@@ -60,7 +64,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           imageHeight={144}
           imageWidth={96}
           resizeMode="cover"
-          url={`ltrbxd/${props.movie.ltrbxd_slug}.jpg`}
+          url={props.movie.image_uri || "placeholder.png"}
           width="96px"
         />
 
@@ -68,24 +72,27 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <spacer size="small" />
           <text size="xsmall">Movie</text>
           <text overflow="ellipsis" size="xlarge" weight="bold">
-            {props.movie.name}
+            {props.movie.title}
           </text>
-          {props.movie.originalName ? (
+          {props.movie.original_title ? (
             <text overflow="ellipsis" size="xsmall">
-              {props.movie.originalName}
+              {props.movie.original_title}
             </text>
           ) : (
             ""
           )}
           <spacer size="small" />
-          <text size="xsmall">
-            Director
-            {1 < Object.values(props.movie.director).length ? "s" : ""}
-          </text>
-          <text size="small" weight="bold" wrap>
-            {Object.values(props.movie.director).join(" | ")}
-          </text>
-          <spacer size="small" />
+          {props.movie.secondary_key && props.movie.secondary_value ? (
+            <vstack>
+              <text size="xsmall">{props.movie.secondary_key}</text>
+              <text size="small" weight="bold" wrap>
+                {props.movie.secondary_value}
+              </text>
+              <spacer size="small" />
+            </vstack>
+          ) : (
+            ""
+          )}
         </vstack>
       </hstack>
 
@@ -163,7 +170,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
               props.setAction(Actions.Submit);
               props.showToast(
                 `${
-                  props.movie.originalName || props.movie.name
+                  props.movie.original_title || props.movie.title
                 } ~ ${getRatingText(props.rating)} rating`
               );
             }}

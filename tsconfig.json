@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": [
+      "node"
+    ]
   },
   "extends": "@devvit/public-api/devvit.tsconfig.json"
 }

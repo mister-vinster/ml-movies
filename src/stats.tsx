@@ -8,8 +8,9 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
   function getRatingsSummary() {
     const values: number[] = Object.values(props.ratings);
     const count = values.reduce((m, i) => m + i, 0);
-    const avg =
-      values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2;
+    const avg = count
+      ? values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2
+      : 0;
     return (
       <hstack alignment="bottom center" gap="small">
         <text size="xlarge" weight="bold">
@@ -74,7 +75,7 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
           imageHeight={72}
           imageWidth={48}
           resizeMode="cover"
-          url={`ltrbxd/${props.movie.ltrbxd_slug}.jpg`}
+          url={props.movie.image_uri || "placeholder.png"}
           width="48px"
         />
 
@@ -82,11 +83,11 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
           <spacer size="small" />
           <text size="xsmall">Movie</text>
           <text overflow="ellipsis" size="xlarge" weight="bold">
-            {props.movie.name}
+            {props.movie.title}
           </text>
-          {props.movie.originalName ? (
+          {props.movie.original_title ? (
             <text overflow="ellipsis" size="xsmall">
-              {props.movie.originalName}
+              {props.movie.original_title}
             </text>
           ) : (
             ""
