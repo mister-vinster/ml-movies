@@ -9,7 +9,7 @@ this app will help you to config one/multiple highlight/normal post with movie r
 * preload movie rating from letterboxd/anywhere
 * full control over metadata/image
 * reddit redis as store
-* export to excel
+* full stats & export options
 
 ### configs
 
@@ -60,12 +60,12 @@ your userId be there in `mods` array if you creating the post & you can add mult
 
 preload movie rating from letterbox by using `half` to `five` like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
 
-this app will upload external `image_uri` & keep that mapping in `refs` prop
+this app will upload external `image_uri` & keep that mapping in `refs`
 
 ### roadmap
 
 | feature | description |
 |-|-|
 | banner_url | background image per movie |
-| recommend_score | weighted AI scoring & related sort |
+| recommend_score + ordering | weighted AI scoring & personalised sorting |
 | watchlist | multi-purpose personal list |

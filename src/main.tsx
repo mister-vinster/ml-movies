@@ -188,7 +188,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const customizeForm = useForm(
     {
       acceptLabel: "save",
-      description: "more ~ github.com/hedcet/ml-movies",
+      description: "refer ~ github.com/hedcet/ml-movies",
       fields: [
         {
           defaultValue: JSON.stringify(configs, null, 2),
@@ -318,7 +318,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     actionLoading,
     showToast,
     enIn,
-    mod: configs.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e",
+    mod: configs.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e", // u/HedCET
     customize,
     download,
   };
