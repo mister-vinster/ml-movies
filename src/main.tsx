@@ -162,8 +162,6 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     {
       depends: [action],
       finally: (r: any, e) => {
-        setAction(Actions.Dummy);
-
         if (r)
           switch (action) {
             case Actions.Submit:
@@ -173,6 +171,8 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
               setFlag(r.flag);
             }
           }
+
+        setAction(Actions.Dummy);
       },
     }
   );
@@ -294,9 +294,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
         )
       : [];
     ctx.ui.navigateTo(
-      `https://ml-movies.hedcet.workers.dev?sub=${
-        ctx.subredditName
-      }&href=${encodeURIComponent(
+      `https://ml-movies.hedcet.workers.dev?href=${encodeURIComponent(
         `data:text/csv;base64,${Buffer.from(csvFormat(data)).toString(
           "base64"
         )}`
