@@ -16,9 +16,7 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
         <text size="xlarge" weight="bold">
           {round(avg, 1)}
         </text>
-        <text maxWidth="80%" overflow="ellipsis" size="small">
-          from {props.enIn(count)} ratings
-        </text>
+        <text size="small">from {props.enIn(count)} ratings</text>
       </hstack>
     );
   }
@@ -40,7 +38,7 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
                   size="xsmall"
                   weight="bold"
                 >
-                  {props.enIn(i)} ~ {round((i / count) * 100, 1)}%
+                  {props.enIn(i)} ~ {count ? round((i / count) * 100, 1) : 0}%
                 </text>
               ) : (
                 ""
@@ -54,7 +52,7 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
             <vstack backgroundColor="secondary-background" cornerRadius="full">
               <hstack
                 backgroundColor="primary-background"
-                width={`${(i / count) * 100}%`}
+                width={`${count ? round((i / count) * 100, 1) : 0}%`}
               >
                 <spacer size="xsmall" shape="square" />
               </hstack>
@@ -75,7 +73,7 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
           imageHeight={72}
           imageWidth={48}
           resizeMode="cover"
-          url={props.movie.image_uri || "placeholder.png"}
+          url={props.movie.image_uri || "placeholder.jpg"}
           width="48px"
         />
 

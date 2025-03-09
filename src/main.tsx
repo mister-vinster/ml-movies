@@ -1,15 +1,15 @@
 import { Devvit, useAsync, useForm, useState } from "@devvit/public-api";
 import { csvFormat } from "d3-dsv";
 import { random } from "lodash";
-import { isJSON } from "validator";
+import { isJSON, isURL } from "validator";
 
 import { validate } from "./ajv.ts";
 import { Actions, Routes } from "./config.ts";
-import { IProps } from "./interface.ts";
+import { IConfigs, IProps } from "./interface.ts";
 import { RatingPage } from "./rating.tsx";
 import { StatsPage } from "./stats.tsx";
 
-Devvit.configure({ redditAPI: true, redis: true });
+Devvit.configure({ media: true, redditAPI: true, redis: true });
 
 Devvit.addMenuItem({
   forUserType: "moderator",
@@ -43,9 +43,12 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   }
 
   function getMovie(index: number = 0) {
-    return configs.movies?.length
-      ? configs.movies[index % configs.movies.length]
+    const movie = configs.movies?.length
+      ? structuredClone(configs.movies[index % configs.movies.length])
       : { id: "id", title: "title" };
+    if (movie.image_uri && configs.refs?.[movie.image_uri])
+      movie.image_uri = configs.refs[movie.image_uri];
+    return movie;
   }
 
   function getKeyPrefix() {
@@ -199,11 +202,37 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     },
     async (r) => {
       if (r.configs && isJSON(r.configs)) {
-        const configs = JSON.parse(r.configs);
+        const configs: IConfigs = JSON.parse(r.configs);
         if (validate(configs)) {
-          await ctx.redis.set(`${ctx.postId}|configs`, r.configs);
+          await Promise.all(
+            configs.movies.map(async (movie) => {
+              if (movie.image_uri) {
+                if (isURL(movie.image_uri)) {
+                  if (new URL(movie.image_uri).hostname.endsWith(".redd.it"))
+                    return;
+                  if (isURL(configs.refs?.[movie.image_uri] || "")) return;
+                  try {
+                    const { mediaUrl } = await ctx.media.upload({
+                      type: "image",
+                      url: movie.image_uri,
+                    });
+                    configs.refs = {
+                      ...configs.refs,
+                      [movie.image_uri]: mediaUrl,
+                    };
+                  } catch (e) {
+                    showToast(`failed to upload image_uri|${movie.image_uri}`);
+                    delete movie.image_uri;
+                  }
+                } else {
+                  showToast(`invalid image_uri|${movie.image_uri}`);
+                  delete movie.image_uri;
+                }
+              }
+            })
+          );
+          await ctx.redis.set(`${ctx.postId}|configs`, JSON.stringify(configs));
           setConfigs(configs);
-          // populate configs.refs
         } else {
           const [error] = validate.errors!;
           showToast(error.message || "invalid configs");
@@ -220,6 +249,8 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     const data = configs.movies
       ? await Promise.all(
           configs.movies.map(async (movie: any) => {
+            if (movie.image_uri && configs.refs?.[movie.image_uri])
+              movie.image_uri = configs.refs[movie.image_uri];
             const [
               half,
               one,
@@ -248,16 +279,16 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
             );
             return {
               ...movie,
-              half: +(movie.half || 0) + +(half || 0),
-              one: +(movie.one || 0) + +(one || 0),
-              one_half: +(movie.one_half || 0) + +(one_half || 0),
-              two: +(movie.two || 0) + +(two || 0),
-              two_half: +(movie.two_half || 0) + +(two_half || 0),
-              three: +(movie.three || 0) + +(three || 0),
-              three_half: +(movie.three_half || 0) + +(three_half || 0),
-              four: +(movie.four || 0) + +(four || 0),
-              four_half: +(movie.four_half || 0) + +(four_half || 0),
-              five: +(movie.five || 0) + +(five || 0),
+              half: +(half || 0) + (movie.half || 0),
+              one: +(one || 0) + (movie.one || 0),
+              one_half: +(one_half || 0) + (movie.one_half || 0),
+              two: +(two || 0) + (movie.two || 0),
+              two_half: +(two_half || 0) + (movie.two_half || 0),
+              three: +(three || 0) + (movie.three || 0),
+              three_half: +(three_half || 0) + (movie.three_half || 0),
+              four: +(four || 0) + (movie.four || 0),
+              four_half: +(four_half || 0) + (movie.four_half || 0),
+              five: +(five || 0) + (movie.five || 0),
             };
           })
         )

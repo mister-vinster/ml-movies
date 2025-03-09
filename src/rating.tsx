@@ -64,7 +64,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           imageHeight={144}
           imageWidth={96}
           resizeMode="cover"
-          url={props.movie.image_uri || "placeholder.png"}
+          url={props.movie.image_uri || "placeholder.jpg"}
           width="96px"
         />
 
