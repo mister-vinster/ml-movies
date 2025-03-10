@@ -94,14 +94,17 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const [ratings, setRatings] = useState(async () => await getRatings());
   const [action, setAction] = useState(Actions.Dummy);
 
-  const { loading: movieIndexLoading } = useAsync(() => getMovie(movieIndex), {
-    depends: [movieIndex],
-    finally: (r) => {
-      if (r) setMovie(r);
-    },
-  });
+  const { loading: movieIndexLoading = false } = useAsync(
+    () => getMovie(movieIndex),
+    {
+      depends: [movieIndex],
+      finally: (r) => {
+        if (r) setMovie(r);
+      },
+    }
+  );
 
-  const { loading: movieLoading } = useAsync(
+  const { loading: movieLoading = false } = useAsync(
     async () => {
       const { flag, rating } = await getRating();
       return { flag, rating, ratings: await getRatings() };
@@ -118,7 +121,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     }
   );
 
-  const { loading: actionLoading } = useAsync(
+  const { loading: actionLoading = false } = useAsync(
     async () => {
       switch (action) {
         case Actions.Submit: {
