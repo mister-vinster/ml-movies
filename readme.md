@@ -8,8 +8,8 @@ this app will help you to config one/multiple highlight/normal post with movie r
 
 * preload movie rating from letterboxd/anywhere
 * full control over metadata/image
-* reddit redis as store
-* full stats & export options
+* reddit internal redis as store
+* stats & export options
 
 ### configs
 
@@ -58,7 +58,7 @@ your userId be there in `mods` array if you creating the post & you can add mult
 | secondary_value | extra metadata value |
 
 
-preload movie rating from letterbox by using `half` to `five` like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
+preload movie rating from letterbox by using `half` to `five` props like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
 
 this app will upload external `image_uri` & keep that mapping in `refs`
 
