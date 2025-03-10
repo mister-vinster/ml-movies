@@ -51,7 +51,7 @@ your userId be there in `mods` array if you creating the post & you can add mult
 | prop | description |
 |-|-|
 | id | unique id like slug in letterboxd url |
-| title | title of the movie english |
+| title | english title of the movie |
 | original_title | locale version of title |
 | image_uri | image url to upload, aspect ratio ~ 2:3  |
 | secondary_key | extra metadata key like release-date |
