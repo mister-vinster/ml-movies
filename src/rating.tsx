@@ -113,7 +113,9 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <button
             disabled={props.actionLoading || props.rating <= 1}
             icon="subtract"
-            onPress={() => props.setRating(props.rating - 1)}
+            onPress={() => {
+              if (1 < props.rating) props.setRating(props.rating - 1);
+            }}
           />
           <vstack alignment="top center">
             <text size="small" weight="bold">
@@ -140,7 +142,9 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <button
             disabled={props.actionLoading || 10 <= props.rating}
             icon="add"
-            onPress={() => props.setRating(props.rating + 1)}
+            onPress={() => {
+              if (props.rating < 10) props.setRating(props.rating + 1);
+            }}
           />
         </hstack>
       )}

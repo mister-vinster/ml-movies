@@ -66,6 +66,7 @@ this app will upload external `image_uri` & keep that mapping in `refs`
 
 | feature | description |
 |-|-|
+| enable_recent_page | enable recent 6 as home page |
 | banner_url | background image per movie |
 | recommend_score + ordering | weighted AI scoring & personalised sorting |
 | watchlist | multi-purpose personal list |
