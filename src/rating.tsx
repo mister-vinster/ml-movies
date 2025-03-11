@@ -36,7 +36,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
       <hstack alignment="middle center" gap="small" width="100%">
         {0 < props.movieIndex ? (
           <button
-            disabled={props.movieIndexLoading}
+            // disabled={props.movieIndexLoading}
             icon="back"
             onPress={() => props.setMovieIndex(props.movieIndex - 1)}
           />
@@ -50,7 +50,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         )}
         <spacer grow />
         <button
-          disabled={props.movieIndexLoading}
+          // disabled={props.movieIndexLoading}
           icon="forward"
           onPress={() => props.setMovieIndex(props.movieIndex + 1)}
         />

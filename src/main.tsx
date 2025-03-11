@@ -1,6 +1,5 @@
 import { Devvit, useAsync, useForm, useState } from "@devvit/public-api";
 import { csvFormat } from "d3-dsv";
-import { random } from "lodash";
 import { isJSON, isURL } from "validator";
 
 import { validate } from "./ajv.ts";
@@ -60,7 +59,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
       `${getKeyPrefix()}|rating`,
       ctx.userId!
     );
-    if (rating === undefined) return { flag: false, rating: random(1, 10) };
+    if (rating === undefined) return { flag: false, rating: 5 };
     return { flag: true, rating: +rating };
   }
 
@@ -94,17 +93,14 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const [ratings, setRatings] = useState(async () => await getRatings());
   const [action, setAction] = useState(Actions.Dummy);
 
-  const { loading: movieIndexLoading = false } = useAsync(
-    () => getMovie(movieIndex),
-    {
-      depends: [movieIndex],
-      finally: (r) => {
-        if (r) setMovie(r);
-      },
-    }
-  );
+  const { loading: movieIndexLoading } = useAsync(() => getMovie(movieIndex), {
+    depends: [movieIndex],
+    finally: (r) => {
+      if (r) setMovie(r);
+    },
+  });
 
-  const { loading: movieLoading = false } = useAsync(
+  const { loading: movieLoading } = useAsync(
     async () => {
       const { flag, rating } = await getRating();
       return { flag, rating, ratings: await getRatings() };
@@ -121,7 +117,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     }
   );
 
-  const { loading: actionLoading = false } = useAsync(
+  const { loading: actionLoading } = useAsync(
     async () => {
       switch (action) {
         case Actions.Submit: {
