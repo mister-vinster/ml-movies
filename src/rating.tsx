@@ -111,7 +111,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           padding="small"
         >
           <button
-            disabled={props.actionLoading || props.rating <= 1}
+            // disabled={props.actionLoading || props.rating <= 1}
             icon="subtract"
             onPress={() => {
               if (1 < props.rating) props.setRating(props.rating - 1);
@@ -140,7 +140,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
             </text>
           </vstack>
           <button
-            disabled={props.actionLoading || 10 <= props.rating}
+            // disabled={props.actionLoading || 10 <= props.rating}
             icon="add"
             onPress={() => {
               if (props.rating < 10) props.setRating(props.rating + 1);
@@ -153,7 +153,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
       <hstack alignment="middle center" gap="small" width="100%">
         <button
-          disabled={props.movieLoading}
+          // disabled={props.movieLoading}
           icon="statistics"
           onPress={() => props.setPage(Routes.Stats)}
         />
@@ -161,14 +161,14 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         {props.flag ? (
           <button
             appearance="destructive"
-            disabled={props.movieLoading || props.actionLoading}
+            // disabled={props.movieLoading || props.actionLoading}
             icon="undo"
             onPress={() => props.setAction(Actions.Reset)}
           />
         ) : (
           <button
             appearance="primary"
-            disabled={props.movieLoading || props.actionLoading}
+            // disabled={props.movieLoading || props.actionLoading}
             icon="checkmark"
             onPress={() => {
               props.setAction(Actions.Submit);
