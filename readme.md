@@ -24,7 +24,7 @@ moderator can add one post with movie rating template like this by using that me
 you can configure this template by using the customize button for following
 
 * moderator for this post
-* list movies with image & metadata, also preload rating from letterboxd
+* movie list with image & metadata, also preload rating from letterboxd
 * reddit image url mapping
 
 ![customize](https://github.com/hedcet/ml-movies/blob/main/assets/customize.png?raw=true)
