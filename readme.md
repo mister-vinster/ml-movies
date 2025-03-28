@@ -1,17 +1,35 @@
-build with [devvit](https://developers.reddit.com)
-
 ### movie rating app for reddit 
 
-this app will help you to config one/multiple highlight/normal post with movie rating feature like letterboxd
+this app will help you to config one/multiple highlight/normal post template with movie rating feature like letterboxd
+
+[install](https://developers.reddit.com/apps/ml-movies) | [source-code](https://github.com/hedcet/ml-movies)
 
 ### features
 
 * preload movie rating from letterboxd/anywhere
 * full control over metadata/image
 * reddit internal redis as store
-* stats & export options
+* aggregated stats & full export option
 
-### configs
+### how to install
+
+you can install it any reddit community if you are moderator, this app will add one menu like this
+
+![menu](assets/menu.png)
+
+moderator can add one post with movie rating template by clicking that menu like this
+
+![movie-rating-template-post](assets/movie-rating-template-post.png)
+
+you can configure this template by using the customize button for following
+
+* moderator for this post
+* list movies with image & metadata, also preload rating from letterboxd
+* reddit image url mapping
+
+![customize](assets/customize.png)
+
+you can modify it like this
 
 ```
 {
@@ -43,9 +61,9 @@ this app will help you to config one/multiple highlight/normal post with movie r
 }
 ```
 
-your userId be there in `mods` array if you creating the post & you can add multiple userId to make them as post-mod
+your userId be there in `mods` array if you creating the post & you can add multiple userId to make them as moderator to this post
 
-`movies` array accept multiple movie object in which `id` & `title` are mandatory
+`movies` array accept multiple movie object in which `id` & `title` are mandatory which is useful - one post weekly
 
 
 | prop | description |
@@ -60,13 +78,21 @@ your userId be there in `mods` array if you creating the post & you can add mult
 
 preload movie rating from letterbox by using `half` to `five` props like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
 
-this app will upload external `image_uri` & keep that mapping in `refs`
+this app will automatically ingest external `image_uri` & keep that in `refs` mapping when you submit
+
+this app using [ajv](https://www.npmjs.com/package/ajv) to validate JSON data that you submit
+
+everybody can see the rating-statistics per movie & aggregated out of 5 using the statistics button
+
+![stats](assets/stats.png)
+
+download button allow post moderator to download the combined rating (preload + redis) in csv format
 
 ### roadmap
 
 | feature | description |
 |-|-|
-| enable_recent_page | enable recent 6 as home page |
+| enable_recent_page | enable recent 6 as home page list/tile |
 | banner_url | background image per movie |
 | recommend_score + ordering | weighted AI scoring & personalised sorting |
 | watchlist | multi-purpose personal list |
