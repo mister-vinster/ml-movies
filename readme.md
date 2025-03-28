@@ -15,11 +15,11 @@ this app will help you to config one/multiple highlight/normal post template wit
 
 you can install it any reddit community if you are moderator, this app will add one menu like this
 
-![menu](assets/menu.png)
+![menu](https://github.com/hedcet/ml-movies/blob/main/assets/menu.png?raw=true)
 
 moderator can add one post with movie rating template by clicking that menu like this
 
-![movie-rating-template-post](assets/movie-rating-template-post.png)
+![movie-rating-template-post](https://github.com/hedcet/ml-movies/blob/main/assets/movie-rating-template-post.png?raw=true)
 
 you can configure this template by using the customize button for following
 
@@ -27,7 +27,7 @@ you can configure this template by using the customize button for following
 * list movies with image & metadata, also preload rating from letterboxd
 * reddit image url mapping
 
-![customize](assets/customize.png)
+![customize](https://github.com/hedcet/ml-movies/blob/main/assets/customize.png?raw=true)
 
 you can modify it like this
 
@@ -84,9 +84,16 @@ this app using [ajv](https://www.npmjs.com/package/ajv) to validate JSON data th
 
 everybody can see the rating-statistics per movie & aggregated out of 5 using the statistics button
 
-![stats](assets/stats.png)
+![stats](https://github.com/hedcet/ml-movies/blob/main/assets/stats.png?raw=true)
 
-download button allow post moderator to download the combined rating (preload + redis) in csv format
+download button allow post moderator to download metadata & combined rating (preload + redis) in csv format
+
+### changelog
+
+* 0.0.292
+  * first preview
+
+check [github](https://github.com/hedcet/ml-movies/releases) for beta
 
 ### roadmap
 
