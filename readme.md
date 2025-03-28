@@ -17,7 +17,7 @@ you can install it any reddit community if you are moderator, this app will add 
 
 ![menu](https://github.com/hedcet/ml-movies/blob/main/assets/menu.png?raw=true)
 
-moderator can add one post with movie rating template by clicking that menu like this
+moderator can add one post with movie rating template like this by using that menu
 
 ![movie-rating-template-post](https://github.com/hedcet/ml-movies/blob/main/assets/movie-rating-template-post.png?raw=true)
 
