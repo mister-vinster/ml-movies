@@ -49,11 +49,15 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           ""
         )}
         <spacer grow />
-        <button
-          // disabled={props.movieIndexLoading}
-          icon="forward"
-          onPress={() => props.setMovieIndex(props.movieIndex + 1)}
-        />
+        {1 < props.pagination ? (
+          <button
+            // disabled={props.movieIndexLoading}
+            icon="forward"
+            onPress={() => props.setMovieIndex(props.movieIndex + 1)}
+          />
+        ) : (
+          ""
+        )}
       </hstack>
 
       <spacer grow />

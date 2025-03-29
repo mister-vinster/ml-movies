@@ -21,7 +21,7 @@ moderator can add one post with movie rating template like this by using that me
 
 ![movie-rating-template-post](https://github.com/hedcet/ml-movies/blob/main/assets/movie-rating-template-post.png?raw=true)
 
-you can configure this template by using the customize button for following
+you can configure that template by using the customize button like following
 
 * moderator for this post
 * movie list with image & metadata, also preload rating from letterboxd
@@ -90,10 +90,10 @@ download button allow post moderator to download metadata & combined rating (pre
 
 ### changelog
 
+* 0.0.294
+  * disable forward pagination only if one movie
 * 0.0.292
   * first preview
-
-check [github](https://github.com/hedcet/ml-movies/releases) for beta
 
 ### roadmap
 

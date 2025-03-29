@@ -309,6 +309,8 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     movieIndexLoading,
     movie,
     movieLoading,
+    mod: configs.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e", // u/HedCET
+    pagination: configs.movies?.length || 0,
     flag,
     rating,
     setRating,
@@ -317,7 +319,6 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     actionLoading,
     showToast,
     enIn,
-    mod: configs.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e", // u/HedCET
     customize,
     download,
   };
