@@ -2,7 +2,7 @@
 
 this app will help you to config one/multiple highlight/normal post template with movie rating feature like letterboxd
 
-[install](https://developers.reddit.com/apps/ml-movies) | [source-code](https://github.com/hedcet/ml-movies)
+[demo](https://www.reddit.com/r/kerala_boxoffice/comments/1j6zuyz) | [source-code](https://github.com/hedcet/ml-movies)
 
 ### features
 
@@ -21,11 +21,13 @@ moderator can add one post with movie rating template like this by using that me
 
 ![movie-rating-template-post](https://github.com/hedcet/ml-movies/blob/main/assets/movie-rating-template-post.png?raw=true)
 
-you can configure that template by using the customize button like following
+you can configure following by using top-left customize button
 
 * moderator for this post
 * movie list with image & metadata, also preload rating from letterboxd
 * reddit image url mapping
+
+this app will automatically ingest external `image_uri` & keep that in `refs` mapping when you submit
 
 ![customize](https://github.com/hedcet/ml-movies/blob/main/assets/customize.png?raw=true)
 
@@ -34,7 +36,7 @@ you can modify it like this
 ```
 {
   "mods": [
-    "t2_tnr2e"
+    <user_id>
   ],
   "movies": [
     {
@@ -65,7 +67,6 @@ your userId be there in `mods` array if you creating the post & you can add mult
 
 `movies` array accept multiple movie object in which `id` & `title` are mandatory which is useful - one post weekly
 
-
 | prop | description |
 |-|-|
 | id | unique id like slug in letterboxd url |
@@ -75,10 +76,7 @@ your userId be there in `mods` array if you creating the post & you can add mult
 | secondary_key | extra metadata key like release-date |
 | secondary_value | extra metadata value |
 
-
 preload movie rating from letterbox by using `half` to `five` props like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
-
-this app will automatically ingest external `image_uri` & keep that in `refs` mapping when you submit
 
 this app using [ajv](https://www.npmjs.com/package/ajv) to validate JSON data that you submit
 
@@ -90,6 +88,8 @@ download button allow post moderator to download metadata & combined rating (pre
 
 ### changelog
 
+* 0.0.317
+  * remove useAsync chain with sync functions for performance
 * 0.0.294
   * disable forward pagination only if one movie
 * 0.0.292

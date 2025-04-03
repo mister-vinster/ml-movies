@@ -41,7 +41,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return configs && isJSON(configs) ? JSON.parse(configs) : {};
   }
 
-  function getMovie(index: number = 0) {
+  function getMovie(index: number = movieIndex) {
     const movie = configs.movies?.length
       ? structuredClone(configs.movies[index % configs.movies.length])
       : { id: "id", title: "title" };
@@ -50,20 +50,20 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return movie;
   }
 
-  function getKeyPrefix() {
-    return `${ctx.postId}|movie-${movie.id}`;
+  function getPrefix(suffix: string = movie.id) {
+    return `${ctx.postId}|movie-${suffix}`;
   }
 
-  async function getRating() {
-    const rating = await ctx.redis.hGet(
-      `${getKeyPrefix()}|rating`,
-      ctx.userId!
-    );
+  async function getRating(prefix: string = getPrefix()) {
+    const rating = await ctx.redis.hGet(`${prefix}|rating`, ctx.userId!);
     if (rating === undefined) return { flag: false, rating: 5 };
     return { flag: true, rating: +rating };
   }
 
-  async function getRatings() {
+  async function getRatings(
+    movie: any = getMovie(),
+    prefix: string = getPrefix()
+  ) {
     const ratings: { [k: string]: number } = {
       half: movie.half || 0,
       one: movie.one || 0,
@@ -78,7 +78,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     };
     const keys = Object.keys(ratings);
     for (const [i, v] of (
-      await ctx.redis.hMGet(`${getKeyPrefix()}|ratings`, keys)
+      await ctx.redis.hMGet(`${prefix}|ratings`, keys)
     ).entries())
       if (v) ratings[keys[i]] += +v;
     return ratings;
@@ -93,88 +93,64 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const [ratings, setRatings] = useState(async () => await getRatings());
   const [action, setAction] = useState(Actions.Dummy);
 
-  const { loading: movieIndexLoading } = useAsync(() => getMovie(movieIndex), {
-    depends: [movieIndex],
-    finally: (r) => {
-      if (r) setMovie(r);
-    },
-  });
-
-  const { loading: movieLoading } = useAsync(
-    async () => {
-      const { flag, rating } = await getRating();
-      return { flag, rating, ratings: await getRatings() };
-    },
-    {
-      depends: [movie],
-      finally: (r) => {
-        if (r) {
-          setFlag(r.flag);
-          setRating(r.rating);
-          setRatings(r.ratings);
-        }
-      },
-    }
-  );
-
   const { loading: actionLoading } = useAsync(
     async () => {
       switch (action) {
         case Actions.Submit: {
-          const txn = await ctx.redis.watch(
-            `${getKeyPrefix()}|rating`,
-            `${getKeyPrefix()}|ratings`
-          );
+          const prefix = getPrefix();
+          const k1 = `${prefix}|rating`;
+          const k10 = `${prefix}|ratings`;
+          const txn = await ctx.redis.watch(k1, k10);
           await txn.multi();
-          await txn.hSet(`${getKeyPrefix()}|rating`, {
-            [ctx.userId!]: `${rating}`,
-          });
-          await txn.hIncrBy(
-            `${getKeyPrefix()}|ratings`,
-            Object.keys(ratings!)[rating - 1],
-            1
-          );
+          await txn.hSet(k1, { [ctx.userId!]: `${rating}` });
+          await txn.hIncrBy(k10, Object.keys(ratings!)[rating - 1], 1);
           await txn.exec();
-          return { flag: true, rating, ratings: await getRatings() };
+          return { flag: true, ratings: await getRatings(movie, prefix) };
         }
 
         case Actions.Reset: {
-          const txn = await ctx.redis.watch(
-            `${getKeyPrefix()}|rating`,
-            `${getKeyPrefix()}|ratings`
-          );
+          const prefix = getPrefix();
+          const k1 = `${prefix}|rating`;
+          const k10 = `${prefix}|ratings`;
+          const txn = await ctx.redis.watch(k1, k10);
           await txn.multi();
-          await txn.hDel(`${getKeyPrefix()}|rating`, [ctx.userId!]);
-          await txn.hIncrBy(
-            `${getKeyPrefix()}|ratings`,
-            Object.keys(ratings!)[rating - 1],
-            -1
-          );
+          await txn.hDel(k1, [ctx.userId!]);
+          await txn.hIncrBy(k10, Object.keys(ratings!)[rating - 1], -1);
           await txn.exec();
-          return { flag: false, rating, ratings: await getRatings() };
+          return { flag: false, ratings: await getRatings(movie, prefix) };
         }
 
         default:
-          return false;
+          return { flag, ratings };
       }
     },
     {
       depends: [action],
       finally: (r: any, e) => {
+        setAction(Actions.Dummy);
+
         if (r)
           switch (action) {
             case Actions.Submit:
             case Actions.Reset: {
-              setRatings(r.ratings);
-              setRating(r.rating);
               setFlag(r.flag);
+              setRatings(r.ratings);
             }
           }
-
-        setAction(Actions.Dummy);
       },
     }
   );
+
+  async function setMovieSync(index: number) {
+    setMovieIndex(index);
+    const movie = getMovie(index);
+    setMovie(movie);
+    const prefix = getPrefix(movie.id);
+    const { flag, rating } = await getRating(prefix);
+    setFlag(flag);
+    setRating(rating);
+    setRatings(await getRatings(movie, prefix));
+  }
 
   function showToast(text: string) {
     ctx.ui.showToast(text);
@@ -305,10 +281,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     page,
     setPage,
     movieIndex,
-    setMovieIndex,
-    movieIndexLoading,
     movie,
-    movieLoading,
     mod: configs.mods?.includes(ctx.userId) || ctx.userId === "t2_tnr2e", // u/HedCET
     pagination: configs.movies?.length || 0,
     flag,
@@ -316,7 +289,8 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     setRating,
     ratings,
     setAction,
-    actionLoading,
+    // actionLoading,
+    setMovieSync,
     showToast,
     enIn,
     customize,

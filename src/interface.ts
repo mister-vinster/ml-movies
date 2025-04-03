@@ -21,10 +21,7 @@ export interface IProps {
   page: number;
   setPage: (page: number) => void;
   movieIndex: number;
-  setMovieIndex: (movie: number) => void;
-  movieIndexLoading: boolean;
   movie: any;
-  movieLoading: boolean;
   mod: boolean;
   pagination: number;
   flag: boolean;
@@ -32,7 +29,8 @@ export interface IProps {
   setRating: (rating: number) => void;
   ratings: any;
   setAction: (action: number) => void;
-  actionLoading: boolean;
+  // actionLoading: boolean;
+  setMovieSync: (index: number) => void;
   showToast: (text: string) => void;
   enIn: (v: number, locale?: string, opts?: any) => string;
   customize: () => void;
