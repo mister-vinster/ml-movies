@@ -1,9 +1,10 @@
 import { Devvit, useAsync, useForm, useState } from "@devvit/public-api";
 import { csvFormat } from "d3-dsv";
+import cache from "memory-cache";
 import { isJSON, isURL } from "validator";
 
 import { validate } from "./ajv.ts";
-import { Actions, Routes } from "./config.ts";
+import { Actions, Routes, TTL } from "./config.ts";
 import { IConfigs, IProps } from "./interface.ts";
 import { RatingPage } from "./rating.tsx";
 import { StatsPage } from "./stats.tsx";
@@ -55,16 +56,26 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   }
 
   async function getRating(prefix: string = getPrefix()) {
-    const rating = await ctx.redis.hGet(`${prefix}|rating`, ctx.userId!);
-    if (rating === undefined) return { flag: false, rating: 5 };
-    return { flag: true, rating: +rating };
+    const k = `${prefix}|rating`;
+    const v = cache.get(k);
+    if (v) return v;
+    const rating = await ctx.redis.hGet(k, ctx.userId!);
+    const r =
+      rating === undefined
+        ? { flag: false, rating: 5 }
+        : { flag: true, rating: +rating };
+    cache.put(k, r, TTL);
+    return r;
   }
 
   async function getRatings(
     movie: any = getMovie(),
     prefix: string = getPrefix()
   ) {
-    const ratings: { [k: string]: number } = {
+    const k = `${prefix}|ratings`;
+    const v = cache.get(k);
+    if (v) return v;
+    const r: { [k: string]: number } = {
       half: movie.half || 0,
       one: movie.one || 0,
       one_half: movie.one_half || 0,
@@ -76,12 +87,13 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
       four_half: movie.four_half || 0,
       five: movie.five || 0,
     };
-    const keys = Object.keys(ratings);
+    const keys = Object.keys(r);
     for (const [i, v] of (
       await ctx.redis.hMGet(`${prefix}|ratings`, keys)
     ).entries())
-      if (v) ratings[keys[i]] += +v;
-    return ratings;
+      if (v) r[keys[i]] += +v;
+    cache.put(k, r, TTL);
+    return r;
   }
 
   const [configs, setConfigs] = useState(async () => await getConfigs());
@@ -105,6 +117,8 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
           await txn.hSet(k1, { [ctx.userId!]: `${rating}` });
           await txn.hIncrBy(k10, Object.keys(ratings!)[rating - 1], 1);
           await txn.exec();
+          cache.del(k1);
+          cache.del(k10);
           return { flag: true, ratings: await getRatings(movie, prefix) };
         }
 
@@ -117,6 +131,8 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
           await txn.hDel(k1, [ctx.userId!]);
           await txn.hIncrBy(k10, Object.keys(ratings!)[rating - 1], -1);
           await txn.exec();
+          cache.del(k1);
+          cache.del(k10);
           return { flag: false, ratings: await getRatings(movie, prefix) };
         }
 
@@ -150,6 +166,13 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     setFlag(flag);
     setRating(rating);
     setRatings(await getRatings(movie, prefix));
+    if (index + 1 < (configs.movies?.length || 0))
+      setTimeout(async () => {
+        const movie = getMovie(index + 1);
+        const prefix = getPrefix(movie.id);
+        await getRating(prefix);
+        await getRatings(movie, prefix);
+      });
   }
 
   function showToast(text: string) {

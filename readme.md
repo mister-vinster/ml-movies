@@ -1,4 +1,4 @@
-### movie rating app for reddit 
+### movie rating app for reddit
 
 this app will help you to config one/multiple highlight/normal post template with movie rating feature like letterboxd
 
@@ -6,10 +6,10 @@ this app will help you to config one/multiple highlight/normal post template wit
 
 ### features
 
-* preload movie rating from letterboxd/anywhere
-* full control over metadata/image
-* reddit internal redis as store
-* aggregated stats & full export option
+- preload movie rating from letterboxd/anywhere
+- full control over metadata/image
+- reddit internal redis as store
+- aggregated stats & full export option
 
 ### how to install
 
@@ -23,9 +23,9 @@ moderator can add one post with movie rating template like this by using that me
 
 you can configure following by using top-left customize button
 
-* moderator for this post
-* movie list with image & metadata, also preload rating from letterboxd
-* reddit image url mapping
+- moderator for this post
+- movie list with image & metadata, also preload rating from letterboxd
+- reddit image url mapping
 
 this app will automatically ingest external `image_uri` & keep that in `refs` mapping when you submit
 
@@ -67,14 +67,14 @@ your userId be there in `mods` array if you creating the post & you can add mult
 
 `movies` array accept multiple movie object in which `id` & `title` are mandatory which is useful - one post weekly
 
-| prop | description |
-|-|-|
-| id | unique id like slug in letterboxd url |
-| title | english title of the movie |
-| original_title | locale version of title |
-| image_uri | image url to upload, aspect ratio ~ 2:3  |
-| secondary_key | extra metadata key like release-date |
-| secondary_value | extra metadata value |
+| prop            | description                             |
+| --------------- | --------------------------------------- |
+| id              | unique id like slug in letterboxd url   |
+| title           | english title of the movie              |
+| original_title  | locale version of title                 |
+| image_uri       | image url to upload, aspect ratio ~ 2:3 |
+| secondary_key   | extra metadata key like release-date    |
+| secondary_value | extra metadata value                    |
 
 preload movie rating from letterbox by using `half` to `five` props like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
 
@@ -88,18 +88,20 @@ download button allow post moderator to download metadata & combined rating (pre
 
 ### changelog
 
-* 0.0.317
-  * remove useAsync chain with sync functions for performance
-* 0.0.294
-  * disable forward pagination only if one movie
-* 0.0.292
-  * first preview
+- 0.0.319
+  - add memory-cache & preload n+1 for performance
+- 0.0.317
+  - remove useAsync chain with sync functions for performance
+- 0.0.294
+  - disable forward pagination only if one movie
+- 0.0.292
+  - first preview
 
 ### roadmap
 
-| feature | description |
-|-|-|
-| enable_recent_page | enable recent 6 as home page list/tile |
-| banner_url | background image per movie |
+| feature                    | description                                |
+| -------------------------- | ------------------------------------------ |
+| enable_recent_page         | enable recent 6 as home page list/tile     |
+| banner_url                 | background image per movie                 |
 | recommend_score + ordering | weighted AI scoring & personalised sorting |
-| watchlist | multi-purpose personal list |
+| watchlist                  | multi-purpose personal list                |
