@@ -1,10 +1,12 @@
-import { Devvit } from "@devvit/public-api";
+import { Devvit, useState } from "@devvit/public-api";
 import { round } from "lodash";
 
 import { IProps } from "./interface.ts";
 import { Actions, Routes } from "./config.ts";
 
 export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
+  const [rating, setRating] = useState(4);
+
   function getRatingText(rating: number) {
     return `${[...Array(Math.floor(rating / 2))].map(() => "🌕").join("")}${[
       ...Array(Math.floor(rating % 2)),
@@ -13,8 +15,8 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
       .join("")}`;
   }
 
-  function getRatingsSummary() {
-    const values: number[] = Object.values(props.ratings);
+  function getRatingsSummary(ratings: { [k: string]: number }) {
+    const values: number[] = Object.values(ratings);
     const count = values.reduce((m, i) => m + i, 0);
     const avg = count
       ? values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2
@@ -37,7 +39,12 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         {0 < props.movieIndex ? (
           <button
             icon="back"
-            onPress={() => props.setMovieSync(props.movieIndex - 1)}
+            onPress={() => {
+              const i = props.movieIndex - 1;
+              props.setMovieIndex(i);
+              if (props.movies.length)
+                props.setMovie(props.movies[i % props.movies.length]);
+            }}
           />
         ) : props.mod ? (
           <hstack gap="small">
@@ -51,7 +58,12 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         {1 < props.pagination ? (
           <button
             icon="forward"
-            onPress={() => props.setMovieSync(props.movieIndex + 1)}
+            onPress={() => {
+              const i = props.movieIndex + 1;
+              props.setMovieIndex(i);
+              if (props.movies.length)
+                props.setMovie(props.movies[i % props.movies.length]);
+            }}
           />
         ) : (
           ""
@@ -98,13 +110,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         </vstack>
       </hstack>
 
-      {props.flag ? (
-        <hstack cornerRadius="full" border="thin" padding="small">
-          <text size="small" weight="bold">
-            {getRatingText(props.rating)} rating
-          </text>
-        </hstack>
-      ) : (
+      {props.movie._rating === undefined ? (
         <hstack
           alignment="bottom center"
           border="thin"
@@ -115,7 +121,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           <button
             icon="subtract"
             onPress={() => {
-              if (1 < props.rating) props.setRating(props.rating - 1);
+              if (0 < rating) setRating(rating - 1);
             }}
           />
           <vstack alignment="top center">
@@ -130,22 +136,28 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
             >
               <hstack
                 backgroundColor="primary-background"
-                width={`${(props.rating - 1) * 11.11}%`}
+                width={`${rating * 11.11}%`}
               >
                 <spacer size="xsmall" shape="square" />
               </hstack>
             </vstack>
             <spacer size="xsmall" />
             <text size="xsmall" weight="bold">
-              {getRatingText(props.rating)}
+              {getRatingText(rating + 1)}
             </text>
           </vstack>
           <button
             icon="add"
             onPress={() => {
-              if (props.rating < 10) props.setRating(props.rating + 1);
+              if (rating < 9) setRating(rating + 1);
             }}
           />
+        </hstack>
+      ) : (
+        <hstack cornerRadius="full" border="thin" padding="small">
+          <text size="small" weight="bold">
+            {getRatingText(props.movie._rating + 1)} rating
+          </text>
         </hstack>
       )}
 
@@ -153,24 +165,30 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
       <hstack alignment="middle center" gap="small" width="100%">
         <button icon="statistics" onPress={() => props.setPage(Routes.Stats)} />
-        {getRatingsSummary()}
-        {props.flag ? (
-          <button
-            appearance="destructive"
-            icon="undo"
-            onPress={() => props.setAction(Actions.Reset)}
-          />
-        ) : (
+        {getRatingsSummary(props.movie._ratings || {})}
+        {props.movie._rating === undefined ? (
           <button
             appearance="primary"
+            // disabled={props.actionLoading}
             icon="checkmark"
             onPress={() => {
+              props.setMovie({ ...props.movie, _rating: rating });
               props.setAction(Actions.Submit);
               props.showToast(
                 `${
                   props.movie.original_title || props.movie.title
-                } ~ ${getRatingText(props.rating)} rating`
+                } ~ ${getRatingText(rating + 1)} rating`
               );
+            }}
+          />
+        ) : (
+          <button
+            appearance="destructive"
+            // disabled={props.actionLoading}
+            icon="undo"
+            onPress={() => {
+              props.setMovie({ ...props.movie, _rating: undefined });
+              props.setAction(Actions.Reset);
             }}
           />
         )}

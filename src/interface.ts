@@ -20,17 +20,15 @@ export interface IMovie {
 export interface IProps {
   page: number;
   setPage: (page: number) => void;
-  movieIndex: number;
+  movies: any[];
   movie: any;
+  setMovie: (movie: any) => void;
+  movieIndex: number;
+  setMovieIndex: (movieIndex: number) => void;
   mod: boolean;
   pagination: number;
-  flag: boolean;
-  rating: number;
-  setRating: (rating: number) => void;
-  ratings: any;
-  setAction: (action: number) => void;
+  setAction: (action: any) => void;
   // actionLoading: boolean;
-  setMovieSync: (index: number) => void;
   showToast: (text: string) => void;
   enIn: (v: number, locale?: string, opts?: any) => string;
   customize: () => void;

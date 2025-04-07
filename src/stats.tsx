@@ -5,8 +5,8 @@ import { IProps } from "./interface.ts";
 import { Routes } from "./config.ts";
 
 export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
-  function getRatingsSummary() {
-    const values: number[] = Object.values(props.ratings);
+  function getRatingsSummary(ratings: { [k: string]: number }) {
+    const values: number[] = Object.values(ratings);
     const count = values.reduce((m, i) => m + i, 0);
     const avg = count
       ? values.reduce((m, item, i) => m + item * (i + 1), 0) / count / 2
@@ -21,8 +21,8 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
     );
   }
 
-  function getRatingsChart() {
-    const values: number[] = Object.values(props.ratings);
+  function getRatingsChart(ratings: { [k: string]: number }) {
+    const values: number[] = Object.values(ratings);
     const count = values.reduce((m, i) => m + i, 0);
     const chunks = chunk(values, 2).map((i) => i.reduce((m, i) => m + i, 0));
     return (
@@ -94,8 +94,8 @@ export const StatsPage: Devvit.BlockComponent<IProps> = (props) => {
         </vstack>
       </hstack>
 
-      {getRatingsSummary()}
-      {getRatingsChart()}
+      {getRatingsSummary(props.movie._ratings || {})}
+      {getRatingsChart(props.movie._ratings || {})}
 
       <spacer grow />
 

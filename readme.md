@@ -76,7 +76,7 @@ your userId be there in `mods` array if you creating the post & you can add mult
 | secondary_key   | extra metadata key like release-date    |
 | secondary_value | extra metadata value                    |
 
-preload movie rating from letterbox by using `half` to `five` props like [this](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
+preload movie rating from letterbox by using `half` to `five` props like [r/kerala_boxoffice](https://github.com/hedcet/boxoffice-server/blob/main/ml-movies.json)
 
 this app using [ajv](https://www.npmjs.com/package/ajv) to validate JSON data that you submit
 
@@ -88,6 +88,8 @@ download button allow post moderator to download metadata & combined rating (pre
 
 ### changelog
 
+- 0.0.329
+  - remove memory-cache & preload all for performance
 - 0.0.319
   - add memory-cache & preload n+1 for performance
 - 0.0.317
