@@ -1,10 +1,11 @@
 import { Devvit, useAsync, useForm, useState } from "@devvit/public-api";
 import { csvFormat } from "d3-dsv";
 import { isJSON, isURL } from "validator";
+import { Buffer } from 'buffer';
 
 import { validate } from "./ajv.ts";
 import { Actions, Routes } from "./config.ts";
-import { IConfigs, IMovie, IProps } from "./interface.ts";
+import { IConfigs, IMovie, IProps } from "./interface.ts"; // Keep IProps here for now
 import { RatingPage } from "./rating.tsx";
 import { StatsPage } from "./stats.tsx";
 
@@ -28,12 +29,26 @@ Devvit.addMenuItem({
       `${post.id}|configs`,
       JSON.stringify({
         mods: [ctx.userId],
-        movies: [{ id: "id", title: "title" }],
+        movies: [{
+          id: "id",
+          title: "title",
+          // ADDED: Initialize recommendation counts
+          recommend_yes: 0,
+          recommend_conditional: 0,
+          recommend_no: 0,
+        }],
       })
     );
     ctx.ui.navigateTo(post);
   },
 });
+
+// Temporarily redefine IProps here to include _recommendation for local use in App
+// This will be aligned with src/interface.ts in the next step.
+interface ILocalProps extends IProps {
+  movie: IMovie & { _rating?: number, _ratings?: { [k: string]: number }, _recommendation?: string };
+}
+
 
 const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   async function getConfigs() {
@@ -50,24 +65,44 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     return v === undefined ? undefined : +v;
   }
 
-  async function getRatings(prefix: string, preload: any = {}) {
-    const k = `${prefix}|ratings`;
-    const r: { [k: string]: number } = {
-      half: preload.half || 0,
+  // ADDED: Function to get a user's individual recommendation
+  async function getRecommendation(prefix: string) {
+    const v = await ctx.redis.hGet(`${prefix}|recommendation`, ctx.userId!);
+    return v === undefined ? undefined : v; // Recommendation is a string
+  }
+
+  // MODIFIED: getRatings now also handles recommendation counts
+  async function getRatingsAndRecommendations(prefix: string, preload: IMovie) {
+    // Star Ratings
+    const ratingsKey = `${prefix}|ratings`;
+    const starCounts: { [k: string]: number } = {
       one: preload.one || 0,
-      one_half: preload.one_half || 0,
       two: preload.two || 0,
-      two_half: preload.two_half || 0,
       three: preload.three || 0,
-      three_half: preload.three_half || 0,
       four: preload.four || 0,
-      four_half: preload.four_half || 0,
       five: preload.five || 0,
+      six: preload.six || 0,
+      seven: preload.seven || 0,
+      eight: preload.eight || 0,
+      nine: preload.nine || 0,
+      ten: preload.ten || 0,
     };
-    const keys = Object.keys(r);
-    for (const [i, v] of (await ctx.redis.hMGet(k, keys)).entries())
-      if (v) r[keys[i]] += +v;
-    return r;
+    const starKeys = Object.keys(starCounts);
+    for (const [i, v] of (await ctx.redis.hMGet(ratingsKey, starKeys)).entries())
+      if (v) starCounts[starKeys[i]] += +v;
+
+    // Recommendation Counts
+    const recommendationsKey = `${prefix}|recommendations`;
+    const recommendCounts: { [k: string]: number } = {
+      recommend_yes: preload.recommend_yes || 0,
+      recommend_conditional: preload.recommend_conditional || 0,
+      recommend_no: preload.recommend_no || 0,
+    };
+    const recommendKeys = Object.keys(recommendCounts);
+    for (const [i, v] of (await ctx.redis.hMGet(recommendationsKey, recommendKeys)).entries())
+      if (v) recommendCounts[recommendKeys[i]] += +v;
+
+    return { starCounts, recommendCounts };
   }
 
   async function getMovies() {
@@ -76,8 +111,15 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
         const m10: any = structuredClone(m1);
         if (m10.image_uri && configs.refs?.[m10.image_uri])
           m10.image_uri = configs.refs[m10.image_uri];
+
         m10._rating = await getRating(getPrefix(m10.id));
-        m10._ratings = await getRatings(getPrefix(m10.id), m10);
+        m10._recommendation = await getRecommendation(getPrefix(m10.id)); // ADDED: Fetch user's individual recommendation
+
+        // MODIFIED: Fetch both star ratings and recommendation counts
+        const { starCounts, recommendCounts } = await getRatingsAndRecommendations(getPrefix(m10.id), m10);
+        m10._ratings = starCounts;
+        m10._recommendations = recommendCounts; // ADDED: Store aggregated recommendation counts
+
         return m10;
       })
     )) as any;
@@ -86,7 +128,13 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   const [configs, setConfigs] = useState(async () => await getConfigs());
   const [page, setPage] = useState(Routes.Rating);
   const [movies, setMovies] = useState(async () => await getMovies());
-  const [movie, setMovie] = useState(movies[0] || { id: "id", title: "title" });
+  // MODIFIED: Initialize movie with new recommendation properties
+  const [movie, setMovie] = useState(movies[0] || {
+    id: "id",
+    title: "title",
+    _recommendation: undefined, // Initialize user's recommendation state
+    _recommendations: { recommend_yes: 0, recommend_conditional: 0, recommend_no: 0 } // Initialize aggregated recommendations
+  });
   const [movieIndex, setMovieIndex] = useState(0);
   const [action, setAction] = useState(Actions.Dummy);
 
@@ -95,45 +143,82 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
       switch (action) {
         case Actions.Submit: {
           const prefix = getPrefix(movie.id);
-          const rating = await getRating(prefix);
-          if (rating === undefined) {
-            const k1 = `${prefix}|rating`;
-            const k10 = `${prefix}|ratings`;
-            const txn = await ctx.redis.watch(k1, k10);
-            await txn.multi();
-            await txn.hSet(k1, { [ctx.userId!]: `${movie._rating}` });
+          const currentRating = await getRating(prefix);
+          const currentRecommendation = await getRecommendation(prefix); // ADDED: Get current recommendation
+
+          const k1_rating = `${prefix}|rating`;
+          const k10_ratings = `${prefix}|ratings`;
+          const k1_recommendation = `${prefix}|recommendation`; // ADDED: Key for individual recommendation
+          const k10_recommendations = `${prefix}|recommendations`; // ADDED: Key for aggregated recommendations
+
+          // MODIFIED: Watch all keys involved in the transaction
+          const txn = await ctx.redis.watch(k1_rating, k10_ratings, k1_recommendation, k10_recommendations);
+          await txn.multi();
+
+          // Handle Star Rating Submission
+          if (currentRating === undefined) { // Only submit if not previously rated
+            await txn.hSet(k1_rating, { [ctx.userId!]: `${movie._rating}` });
             await txn.hIncrBy(
-              k10,
-              Object.keys(movie._ratings)[movie._rating],
+              k10_ratings,
+              Object.keys(movie._ratings)[movie._rating - 1],
               1
             );
-            await txn.exec();
-            return { ratings: await getRatings(prefix, movie) };
           }
-          const { _ratings: ratings } = movie;
-          return { ratings };
+
+          // Handle Recommendation Submission (only if user provided one)
+          if (movie._recommendation !== undefined && currentRecommendation === undefined) {
+             await txn.hSet(k1_recommendation, { [ctx.userId!]: movie._recommendation });
+             await txn.hIncrBy(
+               k10_recommendations,
+               movie._recommendation, // Use the recommendation string as the key
+               1
+             );
+          }
+
+
+          await txn.exec();
+
+          // MODIFIED: Return both star ratings and recommendation counts
+          const { starCounts, recommendCounts } = await getRatingsAndRecommendations(prefix, movie);
+          return { ratings: starCounts, recommendations: recommendCounts };
         }
 
         case Actions.Reset: {
           const prefix = getPrefix(movie.id);
-          const rating = await getRating(prefix);
-          if (rating === undefined) {
-            const { _ratings: ratings } = movie;
-            return { ratings };
-          }
-          const k1 = `${prefix}|rating`;
-          const k10 = `${prefix}|ratings`;
-          const txn = await ctx.redis.watch(k1, k10);
+          const currentRating = await getRating(prefix);
+          const currentRecommendation = await getRecommendation(prefix); // ADDED: Get current recommendation
+
+          const k1_rating = `${prefix}|rating`;
+          const k10_ratings = `${prefix}|ratings`;
+          const k1_recommendation = `${prefix}|recommendation`; // ADDED: Key for individual recommendation
+          const k10_recommendations = `${prefix}|recommendations`; // ADDED: Key for aggregated recommendations
+
+          // MODIFIED: Watch all keys involved in the transaction
+          const txn = await ctx.redis.watch(k1_rating, k10_ratings, k1_recommendation, k10_recommendations);
           await txn.multi();
-          await txn.hDel(k1, [ctx.userId!]);
-          await txn.hIncrBy(k10, Object.keys(movie._ratings)[rating], -1);
+
+          // Handle Star Rating Reset
+          if (currentRating !== undefined) {
+            await txn.hDel(k1_rating, [ctx.userId!]);
+            await txn.hIncrBy(k10_ratings, Object.keys(movie._ratings)[currentRating - 1], -1);
+          }
+
+          // Handle Recommendation Reset
+          if (currentRecommendation !== undefined) {
+            await txn.hDel(k1_recommendation, [ctx.userId!]);
+            await txn.hIncrBy(k10_recommendations, currentRecommendation, -1);
+          }
+
           await txn.exec();
-          return { ratings: await getRatings(prefix, movie) };
+
+          // MODIFIED: Return both star ratings and recommendation counts
+          const { starCounts, recommendCounts } = await getRatingsAndRecommendations(prefix, movie);
+          return { ratings: starCounts, recommendations: recommendCounts };
         }
 
         default:
-          const { _ratings: ratings } = movie;
-          return { ratings };
+          const { _ratings: ratings, _recommendations: recommendations } = movie; // MODIFIED: Destructure recommendations
+          return { ratings, recommendations }; // MODIFIED: Return recommendations
       }
     },
     {
@@ -142,12 +227,15 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
         setAction(Actions.Dummy);
 
         if (r) {
-          setMovie({ ...movie, _ratings: r.ratings });
+          // MODIFIED: Update movie state with both ratings and recommendations
+          setMovie({ ...movie, _ratings: r.ratings, _recommendations: r.recommendations });
           setMovies(
             movies.map((m: any) => {
               if (movie.id === m.id) {
                 m._rating = movie._rating;
                 m._ratings = r.ratings;
+                m._recommendation = movie._recommendation; // Update saved recommendation
+                m._recommendations = r.recommendations; // Update aggregated recommendations
               }
               return m;
             })
@@ -228,47 +316,51 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
   async function download() {
     const data = configs.movies
       ? await Promise.all(
-          configs.movies.map(async (movie: any) => {
+          configs.movies.map(async (movie: IMovie & {
+            one?: number; two?: number; three?: number; four?: number; five?: number;
+            six?: number; seven?: number; eight?: number; nine?: number; ten?: number;
+            recommend_yes?: number; recommend_conditional?: number; recommend_no?: number;
+          }) => { // Temporary type assertion for movie in map to include all expected fields
             if (movie.image_uri && configs.refs?.[movie.image_uri])
               movie.image_uri = configs.refs[movie.image_uri];
+
             const [
-              half,
-              one,
-              one_half,
-              two,
-              two_half,
-              three,
-              three_half,
-              four,
-              four_half,
-              five,
+              one, two, three, four, five, six, seven, eight, nine, ten,
+              recommend_yes, recommend_conditional, recommend_no, // ADDED: New recommendation fields
             ] = await ctx.redis.hMGet(
-              `${ctx.postId}|movie-${movie.id}|ratings`,
+              `${ctx.postId}|movie-${movie.id}|ratings`, // Still retrieving star ratings from 'ratings' hash
               [
-                "half",
-                "one",
-                "one_half",
-                "two",
-                "two_half",
-                "three",
-                "three_half",
-                "four",
-                "four_half",
-                "five",
+                "one", "two", "three", "four", "five",
+                "six", "seven", "eight", "nine", "ten",
               ]
             );
+
+            // ADDED: Retrieve recommendation counts from a separate 'recommendations' hash
+            const [
+              rec_yes, rec_conditional, rec_no,
+            ] = await ctx.redis.hMGet(
+              `${ctx.postId}|movie-${movie.id}|recommendations`, // New hash for recommendations
+              [
+                "recommend_yes", "recommend_conditional", "recommend_no",
+              ]
+            );
+
             return {
               ...movie,
-              half: +(half || 0) + (movie.half || 0),
               one: +(one || 0) + (movie.one || 0),
-              one_half: +(one_half || 0) + (movie.one_half || 0),
               two: +(two || 0) + (movie.two || 0),
-              two_half: +(two_half || 0) + (movie.two_half || 0),
               three: +(three || 0) + (movie.three || 0),
-              three_half: +(three_half || 0) + (movie.three_half || 0),
               four: +(four || 0) + (movie.four || 0),
-              four_half: +(four_half || 0) + (movie.four_half || 0),
               five: +(five || 0) + (movie.five || 0),
+              six: +(six || 0) + (movie.six || 0),
+              seven: +(seven || 0) + (movie.seven || 0),
+              eight: +(eight || 0) + (movie.eight || 0),
+              nine: +(nine || 0) + (movie.nine || 0),
+              ten: +(ten || 0) + (movie.ten || 0),
+              // ADDED: Add recommendation counts to the returned object
+              recommend_yes: +(rec_yes || 0) + (movie.recommend_yes || 0),
+              recommend_conditional: +(rec_conditional || 0) + (movie.recommend_conditional || 0),
+              recommend_no: +(rec_no || 0) + (movie.recommend_no || 0),
             };
           })
         )
@@ -282,7 +374,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     );
   }
 
-  const props: IProps = {
+  const props: ILocalProps = { // Changed to ILocalProps for local consistency
     page,
     setPage,
     movies,

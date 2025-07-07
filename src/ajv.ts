@@ -1,7 +1,7 @@
 import { Ajv } from "ajv";
 
 const schema = {
-  additionalProperties: false,
+  additionalProperties: false, // This ensures only defined properties are allowed
   properties: {
     mods: {
       items: { type: "string" },
@@ -18,18 +18,25 @@ const schema = {
           original_title: { type: "string" },
           secondary_key: { type: "string" },
           secondary_value: { type: "string" },
-          half: { type: "number" },
+          tertiary_key: { type: "string" }, // tertiary_key
+          release_date: { type: "string" }, // release_date
+          // Removed: half-star rating properties
           one: { type: "number" },
-          one_half: { type: "number" },
           two: { type: "number" },
-          two_half: { type: "number" },
           three: { type: "number" },
-          three_half: { type: "number" },
           four: { type: "number" },
-          four_half: { type: "number" },
           five: { type: "number" },
+          six: { type: "number" },
+          seven: { type: "number" },
+          eight: { type: "number" },
+          nine: { type: "number" },
+          ten: { type: "number" },
+          // ADDED: New Recommendation fields
+          recommend_yes: { type: "number" },
+          recommend_conditional: { type: "number" },
+          recommend_no: { type: "number" },
         },
-        required: ["id", "title"],
+        required: ["id", "title"], // id and title are still required as per IMovie interface
         type: "object",
       },
       minItems: 1,

@@ -4,7 +4,8 @@
     "noEmit": true,
     "types": [
       "node"
-    ]
+    ],
+    "jsx": "react" // ADDED: This tells TypeScript to process JSX syntax
   },
   "extends": "@devvit/public-api/devvit.tsconfig.json"
 }
