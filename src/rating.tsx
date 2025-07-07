@@ -1,45 +1,40 @@
 import { Devvit, useState } from "@devvit/public-api";
 import { round } from "lodash";
 
-import { IProps } from "./interface.ts"; // Now imports IRuntimeMovie
+import { IProps } from "./interface.ts";
 import { Actions, Routes } from "./config.ts";
 
 export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
-  // Adjusted default rating to 5 (middle of 1-10 scale)
-  const [rating, setRating] = useState(5); // This state represents the user's selected star rating (1-10)
+  const [rating, setRating] = useState(5);
+  const [recommendationChoice, setRecommendationChoice] = useState<string | null>(null);
 
-  // NEW: State for the user's recommendation choice
-  // Will store "recommend_yes", "recommend_conditional", "recommend_no", or undefined
-  const [recommendationChoice, setRecommendationChoice] = useState<string | undefined>(undefined);
-
-  // New function to display stars for a 1-10 full-star system
   function getRatingText(currentRating: number) {
     if (currentRating < 1 || currentRating > 10) return "Not Rated";
-    return "🌕".repeat(currentRating); // Repeat full moon emoji for each star
+    return "🌕".repeat(currentRating);
   }
 
-  // NEW: Function to get the display text for a recommendation choice
-  function getRecommendationDisplayText(choice: string | undefined): string {
+  function getRecommendationDisplayText(choice: string | undefined | null): string {
     switch (choice) {
       case "recommend_yes":
         return "Yes, Recommended!";
       case "recommend_conditional":
-        return "Yes, but conditionally recommended.";
+        return "Yes, but only to fans of the cast/director/franchise/genre.";
       case "recommend_no":
         return "No, not recommended.";
       default:
-        return "Not recommended yet."; // Should ideally not be seen if choice is undefined
+        return "Not recommended yet.";
     }
   }
 
   function getRatingsSummary(ratings: { [k: string]: number }) {
     const values: number[] = Object.values(ratings);
-    const count = values.reduce((m, i) => m + i, 0); // Total number of ratings
+    const count = values.reduce((m, i) => m + i, 0);
 
     let totalScore = 0;
     Object.keys(ratings).forEach((key, index) => {
-      const starValue = index + 1; // "one" is index 0 (star 1), "two" is index 1 (star 2), etc.
-      totalScore += ratings[key] * starValue;
+      const starValue = index + 1;
+      const count = ratings[key] || 0; // Ensure count is a number
+      totalScore += count * starValue;
     });
 
     const avg = count ? totalScore / count : 0;
@@ -56,8 +51,6 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
     );
   }
 
-  // Determine if the user has already rated OR recommended this movie
-  // If either has been done, they shouldn't see the input controls
   const hasUserRatedOrRecommended = props.movie._rating !== undefined || props.movie._recommendation !== undefined;
 
   return (
@@ -101,7 +94,10 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
       <hstack alignment="bottom center" gap="small" width="100%">
         <image
-          resizeMode="contain"
+          // FIX: Re-added imageWidth and imageHeight, changed resizeMode to string literal "fit"
+          imageWidth={96} // Standard poster width
+          imageHeight={144} // Standard poster height (2:3 aspect)
+          resizeMode="fit" // FIX: Use string literal "fit"
           url={props.movie.image_uri || "placeholder.jpg"}
           maxWidth="96px"
           maxHeight="144px"
@@ -204,56 +200,41 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
                 }}
               />
             </hstack>
-          ) : (
-            // This else block indicates user *has* rated, but we want to show a combined view,
-            // so this entire block will be removed and replaced by a unified display below.
-            // Keeping it for now to illustrate removal if only rating was submitted.
-            // We'll replace this with the combined "already submitted" display below.
-            <hstack cornerRadius="full" border="thin" padding="small">
-              <text size="small" weight="bold">
-                Your Rating: {getRatingText(props.movie._rating)}{" "}
-              </text>
-            </hstack>
-          )}
+          ) : null}
 
-          {/* NEW: Recommendation Input Section */}
+          {/* Recommendation Input Section */}
           {props.movie._recommendation === undefined ? (
-            <vstack alignment="top center" gap="xsmall" width="100%">
+            <vstack alignment="top center" gap="small" width="100%"> {/* FIX: gap="small" */}
               <text size="small" weight="bold">
                 Would you recommend {props.movie.title}?
               </text>
-              <hstack gap="xsmall" alignment="center">
+              <hstack gap="small" alignment="center"> {/* FIX: gap="small" */}
                 <button
-                  text="Yes"
                   onPress={() => setRecommendationChoice("recommend_yes")}
                   appearance={recommendationChoice === "recommend_yes" ? "primary" : "secondary"}
-                />
+                > {/* FIX: Button text as children */}
+                  Yes
+                </button>
                 <button
-                  text="Yes, but only to fans"
                   onPress={() => setRecommendationChoice("recommend_conditional")}
                   appearance={recommendationChoice === "recommend_conditional" ? "primary" : "secondary"}
-                />
+                > {/* FIX: Button text as children */}
+                  Yes, but only to fans of the cast/director/franchise/genre
+                </button>
                 <button
-                  text="No"
                   onPress={() => setRecommendationChoice("recommend_no")}
                   appearance={recommendationChoice === "recommend_no" ? "primary" : "secondary"}
-                />
+                > {/* FIX: Button text as children */}
+                  No
+                </button>
               </hstack>
-              {recommendationChoice ? (
+              {recommendationChoice !== null ? (
                 <text size="xsmall" weight="bold">
                   Selected: {getRecommendationDisplayText(recommendationChoice)}
                 </text>
               ) : null}
             </vstack>
-          ) : (
-            // This else block indicates user *has* recommended.
-            // We'll replace this with the combined "already submitted" display below.
-            <hstack cornerRadius="full" border="thin" padding="small">
-              <text size="small" weight="bold">
-                Your Recommendation: {getRecommendationDisplayText(props.movie._recommendation)}
-              </text>
-            </hstack>
-          )}
+          ) : null}
         </vstack>
       ) : (
         // COMBINED DISPLAY FOR ALREADY SUBMITTED RATING/RECOMMENDATION
@@ -261,7 +242,7 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
           {props.movie._rating !== undefined ? (
             <hstack cornerRadius="full" border="thin" padding="small">
               <text size="small" weight="bold">
-                Your Rating: {getRatingText(props.movie._rating)}
+                Your Rating: {getRatingText(props.movie._rating ?? 0)} {/* FIX: Add ?? 0 to ensure number */}
               </text>
             </hstack>
           ) : null}
@@ -280,21 +261,22 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
 
       <hstack alignment="middle center" gap="small" width="100%">
         <button icon="statistics" onPress={() => props.setPage(Routes.Stats)} />
+        {/* NEW: Rankings Button */}
+        {/* FIX: Ensure 'trophy' is a valid icon name or use an alternative like 'star' */}
+        <button icon="trophy" text="Rankings" onPress={() => props.setPage(Routes.Rankings)} />
         {getRatingsSummary(props.movie._ratings || {})}
         {/* Submit / Undo buttons are now based on combined `hasUserRatedOrRecommended` state */}
         {!hasUserRatedOrRecommended ? (
           <button
             appearance="primary"
-            // disabled={props.actionLoading}
             icon="checkmark"
             onPress={() => {
-              // Only set rating if a rating was selected, otherwise leave undefined
               const ratingToSubmit = rating !== 0 ? rating : undefined; 
 
               props.setMovie({
                 ...props.movie,
-                _rating: ratingToSubmit, // Set star rating
-                _recommendation: recommendationChoice, // Set recommendation
+                _rating: ratingToSubmit,
+                _recommendation: recommendationChoice || undefined,
               });
               props.setAction(Actions.Submit);
               props.showToast(
@@ -307,14 +289,12 @@ export const RatingPage: Devvit.BlockComponent<IProps> = (props) => {
         ) : (
           <button
             appearance="destructive"
-            // disabled={props.actionLoading}
             icon="undo"
             onPress={() => {
-              props.setMovie({ ...props.movie, _rating: undefined, _recommendation: undefined }); // Reset both
+              props.setMovie({ ...props.movie, _rating: undefined, _recommendation: undefined });
               props.setAction(Actions.Reset);
-              // Reset local state if undoing
-              setRating(5); // Reset star rating input default
-              setRecommendationChoice(undefined); // Reset recommendation input default
+              setRating(5);
+              setRecommendationChoice(null);
             }}
           />
         )}
