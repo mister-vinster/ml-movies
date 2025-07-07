@@ -68,10 +68,7 @@ Devvit.addMenuItem({
             `${post.id}|configs`,
             JSON.stringify({
                 mods: [ctx.userId],
-                movies: [{
-                    id: "id",
-                    title: "title",
-                }],
+                movies: [{ id: "id", title: "title" }],
             })
         );
         ctx.ui.navigateTo(post);
@@ -79,7 +76,7 @@ Devvit.addMenuItem({
 });
 
 const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
-    
+    const [isLoading, setIsLoading] = useState(true);
     const [configs, setConfigs] = useState<IConfigs | null>(null);
     const [page, setPage] = useState(Routes.Rating);
     const [movies, setMovies] = useState<IRuntimeMovie[]>([]);
@@ -98,7 +95,7 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     };
 
     const getMoviesDataWithRuntimeInfo = async (currentConfigs: IConfigs): Promise<IRuntimeMovie[]> => {
-        const moviesWithInfo = await Promise.all(
+        return Promise.all(
             (currentConfigs.movies || []).map(async (m1: IMovie) => {
                 const movieWithRuntime: IRuntimeMovie = { ...m1, _ratings: {}, _recommendations: {} };
                 const { averageRating, totalStarVotes } = calculateMovieAverageRating(movieWithRuntime);
@@ -107,30 +104,37 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
                 return movieWithRuntime;
             })
         );
-        return moviesWithInfo;
     };
 
-    // FIX: Removed the second argument '[]' to run the hook only once on mount.
+    // Hook 1: Fetch initial configs ONCE.
     useAsync(async () => {
         const initialConfigs = await getConfigs();
-        if (initialConfigs) {
-            setConfigs(initialConfigs);
-            const moviesData = await getMoviesDataWithRuntimeInfo(initialConfigs);
-            setMovies(moviesData);
-            if (moviesData.length > 0) {
-                setMovie(moviesData[0]);
-            }
-            const { availableYears, availableMonths } = extractAvailableYearsAndMonths(initialConfigs.movies);
-            setAvailableYears(availableYears);
-            setAvailableMonths(availableMonths);
-        }
-        return {}; 
+        setConfigs(initialConfigs || { mods: [], movies: [], refs: {} });
+        return {}; // FIX: Add return statement
     });
     
-    const { loading: actionLoading } = useAsync(async () => {
-        // Your logic for Submit and Reset actions
-        return {}; 
-    }, { depends: [action] });
+    // Hook 2: Process configs and fetch movie data WHEN configs change.
+    useAsync(async () => {
+        if (configs) {
+            const moviesData = await getMoviesDataWithRuntimeInfo(configs);
+            setMovies(moviesData);
+        }
+        return {}; // FIX: Add return statement
+    }, { depends: [configs] });
+
+    // Hook 3: Set initial movie and stop loading WHEN movies array is populated.
+    useAsync(async () => {
+        if (movies.length > 0) {
+            setMovie(movies[0]);
+            const { availableYears, availableMonths } = extractAvailableYearsAndMonths(movies);
+            setAvailableYears(availableYears);
+            setAvailableMonths(availableMonths);
+            setIsLoading(false);
+        } else if (configs && movies.length === 0) {
+            setIsLoading(false);
+        }
+        return {}; // FIX: Add return statement
+    }, { depends: [movies, configs] });
 
     const showToast = (text: string) => ctx.ui.showToast(text);
     const enIn = (value: number, locale = "en-in", opts = {}) => value.toLocaleString(locale, opts);
@@ -140,25 +144,25 @@ const App: Devvit.CustomPostComponent = (ctx: Devvit.Context) => {
     const props: IProps = {
         page, setPage, movies, movie, setMovie, movieIndex, setMovieIndex,
         mod: (configs && ctx.userId) ? configs.mods.includes(ctx.userId) : false,
-        pagination: movies.length,
-        setAction,
-        showToast,
-        enIn,
-        customize,
-        download,
-        rankedMovies,
-        currentRankingFilterState,
-        setRankingFilterState,
-        searchQuery,
-        setSearchQuery,
-        availableYears,
-        availableMonths,
+        pagination: movies.length, setAction, showToast, enIn, customize, download,
+        rankedMovies, currentRankingFilterState, setRankingFilterState, searchQuery,
+        setSearchQuery, availableYears, availableMonths,
     };
     
-    if (!configs) {
+    if (isLoading) {
         return (
             <vstack alignment="middle center" grow>
                 <text size="large">loading...</text>
+            </vstack>
+        );
+    }
+
+    if (!configs || movies.length === 0) {
+        return (
+            <vstack alignment="middle center" grow>
+                <text size="large" color="red">No movies configured.</text>
+                <spacer size="small" />
+                <button onPress={customize}>Configure Movies</button>
             </vstack>
         );
     }
